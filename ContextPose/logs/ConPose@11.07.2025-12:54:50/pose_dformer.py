@@ -115,8 +115,8 @@ class DeformableBlock(nn.Module):
     def forward(self, x, ref, features_list):
         # b, 17, 1, 2
         x_0, x = x[:, :1], x[:, 1:] # [B,1,17,128], [B,4,17,128]. 4
-        b, l, p, c = x.shape    # l=4 (levels), p=17 (num_joints)
-        residual = x    # [B,4,17,128]
+        b, l, p, c = x.shape
+        residual = x
         x = self.norm1(x + x_0) # [B,4,17,128]
 
         weights = self.attention_weights(x).view(b, l, p, self.num_heads, self.num_samples)

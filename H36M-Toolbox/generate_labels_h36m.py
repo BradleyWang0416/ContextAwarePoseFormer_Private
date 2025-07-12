@@ -64,6 +64,7 @@ if __name__ == '__main__':
     keypoints = keypoints['positions_2d'].item()   # dict_keys(['S6', 'S7', 'S5', 'S11', 'S1', 'S9', 'S8', 'S2', 'S3', 'S4'])
     # keypoints['S1']: dict_keys(['Directions 1', 'Discussion 1', ..., 'WalkDog', 'WalkTogether'])
     # keypoints['S1']['Directions 1']: List[Array]. len=4 (4 cameras?). [(1384,17,2), (1387,17,2), (1387,17,2), (1384,17,2)]
+    # 数值量级为百, 说明是图像坐标系, 单位是像素
 
     with open('camera_data.pkl', 'rb') as f:
         camera_data = pickle.load(f)
