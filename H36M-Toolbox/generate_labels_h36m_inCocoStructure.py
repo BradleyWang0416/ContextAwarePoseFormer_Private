@@ -83,6 +83,9 @@ if __name__ == '__main__':
     # keypoints['S1']['Directions 1']: List[Array]. len=4 (4 cameras?). [(1384,17,2), (1387,17,2), (1387,17,2), (1384,17,2)]
     # 数值量级为百, 说明是图像坐标系, 单位是像素
 
+    # WARNING !
+    # data_2d_h36m_cpn_ft_h36m_dbb.npz 缺少了 S11 的 Directions 的 4 个 camera 对应的 2D 检测数据
+
     with open('camera_data.pkl', 'rb') as f:
         camera_data = pickle.load(f)
 
@@ -101,111 +104,114 @@ if __name__ == '__main__':
 	}]
     train_db = {'images': [], 'annotations': [], 'categories': categories}
     test_db = {'images': [], 'annotations': [], 'categories': categories}
-    global_id = 0
-    video_id = 0
-    for s in subject_list:
-        for a in action_list:
-            for sa in subaction_list:
-                for c in camera_list:
 
-                    camera = camera_data[(s, c)]
-                    camera_dict = {}
-                    camera_dict['R'] = camera[0]
-                    camera_dict['T'] = camera[1]
-                    camera_dict['fx'] = camera[2][0]
-                    camera_dict['fy'] = camera[2][1]
-                    camera_dict['cx'] = camera[3][0]
-                    camera_dict['cy'] = camera[3][1]
-                    camera_dict['k'] = camera[4]
-                    camera_dict['p'] = camera[5]
+    for data_split, subject_list_split in zip(['test', 'train'], [test_list, train_list]):
+        global_id = 0
+        video_id = 0
+        for s in subject_list_split:
+            for a in action_list:
+                for sa in subaction_list:
+                    for c in camera_list:
 
-                    subject = f'S{s}' # 'S1'
+                        camera = camera_data[(s, c)]
+                        camera_dict = {}
+                        camera_dict['R'] = camera[0]
+                        camera_dict['T'] = camera[1]
+                        camera_dict['fx'] = camera[2][0]
+                        camera_dict['fy'] = camera[2][1]
+                        camera_dict['cx'] = camera[3][0]
+                        camera_dict['cy'] = camera[3][1]
+                        camera_dict['k'] = camera[4]
+                        camera_dict['p'] = camera[5]
 
-                    basename = metadata.get_base_filename(f'S{s:d}', f'{a:d}', f'{sa:d}', metadata.camera_ids[c-1])     # 'Directions 1.54138969'
-                    annotname = basename + '.cdf'
+                        subject = f'S{s}' # 'S1'
 
-                    imagebasename = basename.replace(' ', '_')     # 'Directions_1.54138969'
-                    imagesubdir = osp.join(subject, f"{subject}_{imagebasename}")  # 'S1/S1_Directions_1.54138969'
+                        basename = metadata.get_base_filename(f'S{s:d}', f'{a:d}', f'{sa:d}', metadata.camera_ids[c-1])     # 'Directions 1.54138969'
+                        annotname = basename + '.cdf'
 
-                    annofile3d_camera = osp.join('/data1/wxs/DATASETS/Human3.6M_MMPose/extracted', subject, 'MyPoseFeatures', 'D3_Positions_mono', annotname)
-                    annofile2d = osp.join('/data1/wxs/DATASETS/Human3.6M_MMPose/extracted', subject, 'MyPoseFeatures', 'D2_Positions', annotname)
+                        imagebasename = basename.replace(' ', '_')     # 'Directions_1.54138969'
+                        imagesubdir = osp.join(subject, f"{subject}_{imagebasename}")  # 'S1/S1_Directions_1.54138969'
 
-                    data = cdflib.CDF(annofile3d_camera)
-                    pose3d_camera = np.array(data.varget("Pose"))
-                    pose3d_camera = np.reshape(pose3d_camera, (-1, 32, 3))
+                        annofile3d_camera = osp.join('/data1/wxs/DATASETS/Human3.6M_MMPose/extracted', subject, 'MyPoseFeatures', 'D3_Positions_mono', annotname)
+                        annofile2d = osp.join('/data1/wxs/DATASETS/Human3.6M_MMPose/extracted', subject, 'MyPoseFeatures', 'D2_Positions', annotname)
 
-                    if basename.split('.')[0] not in keypoints[f'S{s:d}'].keys():
-                        if "TakingPhoto" in basename:
-                            basename = basename.replace("TakingPhoto", "Photo")
-                        elif "WalkingDog" in basename:
-                            basename = basename.replace("WalkingDog", "WalkDog")
-                        else:
-                            print(basename.split('.')[0] + " is missing!")
-                            continue
+                        data = cdflib.CDF(annofile3d_camera)
+                        pose3d_camera = np.array(data.varget("Pose"))
+                        pose3d_camera = np.reshape(pose3d_camera, (-1, 32, 3))
 
-                    data = cdflib.CDF(annofile2d)
-                    pose2d_gt = np.array(data.varget("Pose"))
-                    pose2d_gt = np.reshape(pose2d_gt, (-1, 32, 2))
-                    pose2d_cpn = keypoints['S{:d}'.format(s)][basename.split('.')[0]][c-1]
+                        if basename.split('.')[0] not in keypoints[f'S{s:d}'].keys():
+                            if "TakingPhoto" in basename:
+                                basename = basename.replace("TakingPhoto", "Photo")
+                            elif "WalkingDog" in basename:
+                                basename = basename.replace("WalkingDog", "WalkDog")
+                            else:
+                                print(basename.split('.')[0] + " is missing!")
+                                continue
 
-                    nposes = min(pose3d_camera.shape[0], pose2d_gt.shape[0])
-                    if pose2d_cpn.shape[0] > nposes:
-                        pose2d_cpn = pose2d_cpn[:nposes]
-                    assert pose2d_gt.shape[0] == pose2d_cpn.shape[0] 
-                    assert pose2d_cpn.shape[0] == pose3d_camera.shape[0]
+                        data = cdflib.CDF(annofile2d)
+                        pose2d_gt = np.array(data.varget("Pose"))
+                        pose2d_gt = np.reshape(pose2d_gt, (-1, 32, 2))
+                        pose2d_cpn = keypoints['S{:d}'.format(s)][basename.split('.')[0]][c-1]
 
-                    video_id += 1
-                    for i in tqdm(range(nposes)):
-                        global_id += 1
-                        imagename = f"{subject}_{imagebasename}_{i+1:06d}.jpg"
-                        imagepath = osp.join(imagesubdir, imagename)
+                        nposes = min(pose3d_camera.shape[0], pose2d_gt.shape[0])
+                        if pose2d_cpn.shape[0] > nposes:
+                            pose2d_cpn = pose2d_cpn[:nposes]
+                        assert pose2d_gt.shape[0] == pose2d_cpn.shape[0] 
+                        assert pose2d_cpn.shape[0] == pose3d_camera.shape[0]
 
-                        data_numpy = cv2.imread(osp.join('/data1/wxs/DATASETS/Human3.6M_MMPose/processed/images_fps50', imagepath), cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
-                        h, w, _ = data_numpy.shape
+                        video_id += 1
+                        for i in tqdm(range(nposes)):
+                            global_id += 1
+                            imagename = f"{subject}_{imagebasename}_{i+1:06d}.jpg"
+                            imagepath = osp.join(imagesubdir, imagename)
 
-                        imageinfo = {
-                            'file_name': imagepath,
-                            'height': h,
-                            'width': w,
-                            'id': global_id,
-                        }
+                            data_numpy = cv2.imread(osp.join('/data1/wxs/DATASETS/Human3.6M_MMPose/processed/images_fps50', imagepath), cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
+                            h, w, _ = data_numpy.shape
 
-                        datum = {}
-                        datum['id'] = global_id
-                        datum['category_id'] = 1  # Only one category for human pose
-                        datum['image_id'] = global_id
-                        datum['video_id'] = video_id
-                        datum['iscrowd'] = 0
+                            imageinfo = {
+                                'file_name': imagepath,
+                                'height': h,
+                                'width': w,
+                                'id': global_id,
+                            }
 
-                        datum['keypoints'] = pose2d_gt[i, joint_idx, :]
-                        datum['keypoints_cpn'] = pose2d_cpn[i]
-                        datum['keypoints_3d'] = pose3d_camera[i, joint_idx, :]
+                            datum = {}
+                            datum['id'] = global_id
+                            datum['category_id'] = 1  # Only one category for human pose
+                            datum['image_id'] = global_id
+                            datum['video_id'] = video_id
+                            datum['iscrowd'] = 0
 
-                        box = _infer_box(datum['keypoints_3d'], camera_dict, 0)     # [x_min, y_min, x_max, y_max] 格式, 4个数字分别代表: 左上角x坐标, 左上角y坐标, 右下角x坐标, 右下角y坐标
-                        center = (0.5 * (box[0] + box[2]), 0.5 * (box[1] + box[3]))
-                        scale = ((box[2] - box[0]) / 200.0, (box[3] - box[1]) / 200.0)
-                        datum['center'] = center
-                        datum['scale'] = scale
-                        datum['bbox_xyxy'] = box
+                            datum['keypoints'] = pose2d_gt[i, joint_idx, :] # (17,2)
+                            datum['keypoints_cpn'] = pose2d_cpn[i]  # (17,2)
+                            datum['keypoints_3d'] = pose3d_camera[i, joint_idx, :]  # (17,3)
 
-                        datum['source'] = (s, a, sa, c)
-                        
-                        if s in train_list:
-                            train_db['images'].append(imageinfo)
-                            train_db['annotations'].append(datum)
-                        else:
-                            test_db['images'].append(imageinfo)
-                            test_db['annotations'].append(datum)
+                            box = _infer_box(datum['keypoints_3d'], camera_dict, 0)     # [x_min, y_min, x_max, y_max] 格式, 4个数字分别代表: 左上角x坐标, 左上角y坐标, 右下角x坐标, 右下角y坐标
+                            center = (0.5 * (box[0] + box[2]), 0.5 * (box[1] + box[3]))
+                            # scale = ((box[2] - box[0]) / 200.0, (box[3] - box[1]) / 200.0)
+                            scale = ((box[2] - box[0]), (box[3] - box[1]))
+                            datum['center'] = center
+                            datum['scale'] = scale
+                            datum['bbox_xyxy'] = box
 
+                            datum['source'] = (s, a, sa, c)
 
-    with open('/data1/wxs/ContextAware-PoseFormer/H36M-Toolbox/h36m_coco_train.json', 'wb') as f:
-        json.dump(train_db, f)
-
-    with open('/data1/wxs/ContextAware-PoseFormer/H36M-Toolbox/h36m_coco_validation.json', 'wb') as f:
-        json.dump(test_db, f)
-
-
-
+                            datum['keypoints'] = datum['keypoints'].reshape(-1).tolist()
+                            datum['keypoints_cpn'] = datum['keypoints_cpn'].reshape(-1).tolist()
+                            datum['keypoints_3d'] = datum['keypoints_3d'].reshape(-1).tolist()
+                            datum['bbox_xyxy'] = datum['bbox_xyxy'].reshape(-1).tolist()
+                            
+                            if data_split == 'train':
+                                train_db['images'].append(imageinfo)
+                                train_db['annotations'].append(datum)
+                            else:
+                                test_db['images'].append(imageinfo)
+                                test_db['annotations'].append(datum)
 
 
+        with open(f'/data1/wxs/ContextAware-PoseFormer/H36M-Toolbox/h36m_coco_{data_split}.json', 'w') as f:
+            if data_split == 'train':
+                json.dump(train_db, f)
+            else:
+                json.dump(test_db, f)
 
