@@ -32,7 +32,7 @@ for s in subject_list:
                 basename = metadata.get_base_filename('S{:d}'.format(s), '{:d}'.format(a), '{:d}'.format(sa), metadata.camera_ids[c-1])
                 videoname = basename + '.mp4'
                 subject = 'S' + str(s)
-                videopath = osp.join('/data1/wxs/DATASETS/Human3.6M_MMPose/extracted', subject, 'Videos', videoname)
+                videopath = osp.join('/data2/wxs/DATASETS/Human3.6M_MMPose/extracted', subject, 'Videos', videoname)
 
                 print(videopath)
                 cnt += 1
