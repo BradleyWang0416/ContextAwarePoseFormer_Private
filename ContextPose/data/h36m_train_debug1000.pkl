@@ -1,0 +1,1 @@
+/home/wxs/wxs/ContextAwarePoseFormer_Private/ContextPose/data/h36m_train_debug1000.pkl

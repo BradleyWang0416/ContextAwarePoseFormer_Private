@@ -39,5 +39,5 @@ class CA_PF(nn.Module):
         # features_list: List[Tensor]. len=4. example: [torch.Size([B,32,64,48]), torch.Size([B,64,32,24]), torch.Size([B,128,16,12]), torch.Size([B,256,8,6])]
         keypoints_3d = self.volume_net(keypoints_2d_cpn, keypoints_2d_cpn_crop, features_list)
 
-        return keypoints_3d
+        return keypoints_3d # [B,1,17,3]
 

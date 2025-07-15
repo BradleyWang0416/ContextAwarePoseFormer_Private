@@ -28,7 +28,7 @@ joints_right = [1, 2, 3, 14, 15, 16]
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, required=True, help="Path to config file")
+    parser.add_argument("--config", type=str, required=True, help="Path to config file")    # 'experiments/human36m/human36m.yaml'
     parser.add_argument('--eval', action='store_true', help="Only evaluation if set")
     parser.add_argument('--eval_dataset', type=str, default='val', choices=['train','val'],
                         help="Split for evaluation")
@@ -40,10 +40,17 @@ def parse_args():
     parser.add_argument("--frame", type=int, default=1, help="Frame number to use")
     parser.add_argument("--backbone", type=str, default='hrnet_32',
                         choices=['hrnet_32', 'hrnet_48', 'cpn'], help="2D pose backbone")
+    
+    parser.add_argument('--debug', action='store_true', help="Only evaluation if set")
+
     args = parser.parse_args()
     update_config(args.config)
     update_dir(args.azureroot, args.logdir)
     config.model.backbone.type = args.backbone
+
+    if args.debug:
+        config.dataset.train_labels_path = "data/h36m_train_debug1000.pkl"
+        config.dataset.val_labels_path = "data/h36m_validation_debug1000.pkl"
     return args
 
 def setup_human36m_dataloaders(config, is_train, distributed_train, rank=None, world_size=None):
@@ -188,7 +195,7 @@ def one_epoch_full(model, criterion, optimizer, config, dataloader, device, epoc
                 keypoints_3d_pred = model(images_batch, kpts_2d_cpn, kpts_2d_cpn_crop)
 
             # Compute loss
-            loss = criterion(keypoints_3d_pred, keypoints_3d_gt)
+            loss = criterion(keypoints_3d_pred, keypoints_3d_gt)    # criterion = MPJPE(). loss: a scalar tensor
             metric_dict[config.loss.criterion].append(loss.item())
             metric_dict['total_loss'].append(loss.item())
 
@@ -205,7 +212,7 @@ def one_epoch_full(model, criterion, optimizer, config, dataloader, device, epoc
                         )
                     optimizer.step()
             else:
-                results['keypoints_gt'].append(keypoints_3d_gt.detach())
+                results['keypoints_gt'].append(keypoints_3d_gt.detach())    # [B,1,17,3]
                 results['keypoints_3d'].append(keypoints_3d_pred.detach())
 
             pbar.set_postfix(loss=loss.item())
@@ -233,7 +240,9 @@ def one_epoch_full(model, criterion, optimizer, config, dataloader, device, epoc
     if master:
         if dist_size is None:
             print('Evaluating...')
-            res = dataloader.dataset.evaluate(results['keypoints_gt'],
+            results['keypoints_gt'] = torch.cat(results['keypoints_gt'])    # [N,1,17,3]
+            results['keypoints_3d'] = torch.cat(results['keypoints_3d'])
+            res = dataloader.dataset.evaluate(results['keypoints_gt'],  # Human36MSingleViewDataset -> evaluate
                                               results['keypoints_3d'],
                                               None, config)
         else:

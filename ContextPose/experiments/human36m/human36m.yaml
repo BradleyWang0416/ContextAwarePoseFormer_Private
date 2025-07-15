@@ -48,7 +48,7 @@ train:
   n_objects_per_epoch: 15000
   n_epochs: 9999
 
-  batch_size: 2  # 512 for other backbones, 256 for cpn
+  batch_size: 512  # 512 for other backbones, 256 for cpn
 
   optimizer: 'Adam'
   backbone_lr: 0.0
