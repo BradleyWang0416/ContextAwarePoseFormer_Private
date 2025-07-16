@@ -176,7 +176,7 @@ def update_dict(v, cfg):
 
 def update_config(path):
     exp_config = None
-    with open(path) as fin:
+    with open(path) as fin: # path = 'experiments/human36m/human36m.yaml'
         exp_config = edict(yaml.safe_load(fin))
         update_dict(exp_config, config)
 

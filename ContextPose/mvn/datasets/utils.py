@@ -37,12 +37,13 @@ class data_prefetcher():
             self.next_batch = None
             return
         with torch.cuda.stream(self.stream):
-            for i in range(len(self.next_batch)):
+            for i in range(len(self.next_batch)):   # iterate over each object returned by __getitem__
                 self.next_batch[i] = self.next_batch[i].cuda(non_blocking=True).to(self.device)
 
             images_batch, keypoints_3d_gt, keypoints_2d_batch_cpn, keypoints_2d_batch_cpn_crop = self.next_batch
+            # [B,256,192,3], [B,1,17,3], [B,17,2], [B,17,2]
 
-            images_batch = torch.flip(images_batch, [-1])
+            images_batch = torch.flip(images_batch, [-1])   # bgr -> rgb
 
             if self.backbone in ['hrnet_32', 'hrnet_48']:
                 images_batch = (images_batch / 255.0 - self.mean) / self.std
@@ -87,6 +88,67 @@ class data_prefetcher():
         batch = self.next_batch
         self.preload()
         return batch
+    
+
+class data_prefetcher_multiframe_byBradley(data_prefetcher):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+
+    def preload(self):
+        try:
+            self.next_batch = next(self.loader)
+        except StopIteration:
+            self.next_batch = None
+            return
+        with torch.cuda.stream(self.stream):
+            for i in range(len(self.next_batch)):   # iterate over each object returned by __getitem__
+                self.next_batch[i] = self.next_batch[i].cuda(non_blocking=True).to(self.device)
+
+            videos_batch, video_keypoints_3d_gt, video_keypoints_2d_batch_cpn, video_keypoints_2d_batch_cpn_crop = self.next_batch
+            # [B,T,256,192,3], [B,T,17,3], [B,T,17,2], [B,T,17,2]
+
+            videos_batch = torch.flip(videos_batch, [-1])   # bgr -> rgb
+            if self.backbone in ['hrnet_32', 'hrnet_48']:
+                videos_batch = (videos_batch / 255.0 - self.mean) / self.std
+            elif self.backbone == 'cpn':
+                videos_batch = videos_batch / 255.0 - self.mean  # for CPN
+            
+            video_keypoints_3d_gt -= video_keypoints_3d_gt[..., 0:1, :]
+
+            if random.random() <= 0.5 and self.is_train:
+                videos_batch = torch.flip(videos_batch, [-2])
+
+                video_keypoints_2d_batch_cpn[..., 0] *= -1
+                video_keypoints_2d_batch_cpn[..., joints_left + joints_right, :] = video_keypoints_2d_batch_cpn[..., joints_right + joints_left, :]
+
+                video_keypoints_2d_batch_cpn_crop[..., 0] = 192 - video_keypoints_2d_batch_cpn_crop[..., 0] - 1     # x-coordinate
+                video_keypoints_2d_batch_cpn_crop[..., joints_left + joints_right, :] = video_keypoints_2d_batch_cpn_crop[..., joints_right + joints_left, :]
+
+                video_keypoints_3d_gt[..., 0] *= -1
+                video_keypoints_3d_gt[..., joints_left + joints_right, :] = video_keypoints_3d_gt[..., joints_right + joints_left, :]
+    
+            if (not self.is_train) and self.flip_test:
+                videos_batch = torch.stack([videos_batch, torch.flip(videos_batch, [-2])], dim=1)   # [B,2,T,256,192,3]
+
+                video_keypoints_2d_batch_cpn_flip = video_keypoints_2d_batch_cpn.clone()
+                video_keypoints_2d_batch_cpn_flip[..., 0] *= -1
+                video_keypoints_2d_batch_cpn_flip[..., joints_left + joints_right, :] = video_keypoints_2d_batch_cpn_flip[..., joints_right + joints_left, :]
+                video_keypoints_2d_batch_cpn = torch.stack([video_keypoints_2d_batch_cpn, video_keypoints_2d_batch_cpn_flip], dim=1)    # [B,2,T,17,2]
+
+                video_keypoints_2d_batch_cpn_crop_flip = video_keypoints_2d_batch_cpn_crop.clone()
+                video_keypoints_2d_batch_cpn_crop_flip[..., 0] = 192 - video_keypoints_2d_batch_cpn_crop_flip[..., 0] - 1
+                video_keypoints_2d_batch_cpn_crop_flip[..., joints_left + joints_right, :] = video_keypoints_2d_batch_cpn_crop_flip[..., joints_right + joints_left, :]
+                video_keypoints_2d_batch_cpn_crop = torch.stack([video_keypoints_2d_batch_cpn_crop, video_keypoints_2d_batch_cpn_crop_flip], dim=1)     # [B,2,T,17,2]
+
+                del video_keypoints_2d_batch_cpn_flip, video_keypoints_2d_batch_cpn_crop_flip
+
+            self.next_batch = [videos_batch.float(), video_keypoints_3d_gt.float(), video_keypoints_2d_batch_cpn.float(), video_keypoints_2d_batch_cpn_crop.float()]
+        return
+
+
+    def next(self):
+        return super().next()
 
 
 def make_collate_fn(randomize_n_views=True, min_n_views=10, max_n_views=31):

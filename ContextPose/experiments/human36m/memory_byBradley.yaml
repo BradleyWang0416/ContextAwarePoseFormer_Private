@@ -1,0 +1,14 @@
+# By Bradley
+num_maskmem: 0
+directly_add_no_mem_embed: true
+max_cond_frames_in_attn: -1
+num_feature_levels: 4    # 4 for hrnet
+memory_temporal_stride_for_eval: 1
+no_mem_embed_dims: 32
+num_memory_attention_layer: 2
+memory_attention_layer:
+  type: TransformerDecoderLayer
+  embed_dims: 32
+  num_heads: 4
+  feedforward_channels: 32 * 4
+  qkv_bias: true

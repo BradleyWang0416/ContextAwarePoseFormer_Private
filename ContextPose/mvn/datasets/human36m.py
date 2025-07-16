@@ -303,6 +303,7 @@ class Human36MMultiViewDataset(Dataset):
         # return image, np.expand_dims(shot['joints_3d'], axis=0), shot['joints_2d_gt'], shot['joints_2d_gt_crop']
         # return np.expand_dims(shot['joints_3d'], axis=0), shot['joints_2d_cpn'], shot['joints_2d_cpn_crop']
         return image, np.expand_dims(shot['joints_3d'], axis=0), shot['joints_2d_cpn'], shot['joints_2d_cpn_crop']
+        # [256,192,3], [1,17,3], [17,2], [17,2]
 
     def evaluate_using_per_pose_error(self, per_pose_error, split_by_subject):
         def evaluate_by_actions(self, per_pose_error, mask=None):

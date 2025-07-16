@@ -15,9 +15,11 @@ from torch.nn.parallel import DistributedDataParallel
 
 from tqdm import tqdm
 from tensorboardX import SummaryWriter
+import yaml
+from easydict import EasyDict as edict
 
 from mvn import datasets
-from mvn.models.conpose import CA_PF
+from mvn.models.conpose import CA_PF, CA_PF_VIDEO
 from mvn.models.loss import MPJPE, KeypointsMSELoss, KeypointsMSESmoothLoss, KeypointsMAELoss
 from mvn.utils import misc
 from mvn.utils.cfg import config, update_config, update_dir
@@ -38,16 +40,25 @@ def parse_args():
     parser.add_argument("--logdir", type=str, default="logs/", help="Logs path")
     parser.add_argument("--azureroot", type=str, default="", help="Root path for code")
     parser.add_argument("--frame", type=int, default=1, help="Frame number to use")
-    parser.add_argument("--backbone", type=str, default='hrnet_32',
-                        choices=['hrnet_32', 'hrnet_48', 'cpn'], help="2D pose backbone")
+    parser.add_argument("--backbone", type=str, default='hrnet_32', choices=['hrnet_32', 'hrnet_48', 'cpn'], help="2D pose backbone")
     
+    # By Bradley
     parser.add_argument('--debug', action='store_true', help="Only evaluation if set")
+    parser.add_argument("--data_mode", type=str, default="", help="Root path for code")
+    parser.add_argument("--memory_config", type=str, default="experiments/human36m/memory_byBradley.yaml", help="Path to config file")    # 'experiments/human36m/human36m.yaml'
 
     args = parser.parse_args()
     update_config(args.config)
     update_dir(args.azureroot, args.logdir)
     config.model.backbone.type = args.backbone
 
+    # By Bradley
+    if args.data_mode:
+        setattr(config, 'data_mode', args.data_mode)
+        if config.data_mode == 'video':
+            with open(args.memory_config, 'r') as fin:
+                memory_config = edict(yaml.safe_load(fin))
+            setattr(config, 'memory_config', memory_config)
     if args.debug:
         config.dataset.train_labels_path = "data/h36m_train_debug1000.pkl"
         config.dataset.val_labels_path = "data/h36m_validation_debug1000.pkl"
@@ -168,16 +179,22 @@ def one_epoch_full(model, criterion, optimizer, config, dataloader, device, epoc
     grad_context = torch.autograd.enable_grad if is_train else torch.no_grad
     with grad_context():
         # No forced iteration here; we let the training loop do it
-        prefetcher = dataset_utils.data_prefetcher(dataloader, device, is_train,
-                                                   config.val.flip_test,
-                                                   config.model.backbone.type)
+        if config.data_mode == 'video': # By Bradley
+            prefetcher_class = dataset_utils.data_prefetcher_multiframe_byBradley
+        else:
+            prefetcher_class = dataset_utils.data_prefetcher
+
+        prefetcher = prefetcher_class(dataloader, device, is_train,
+                                      config.val.flip_test,
+                                      config.model.backbone.type)
         batch = prefetcher.next()
         data_len = len(dataloader)
         pbar = tqdm(total=data_len, desc=f"[{name} epoch {epoch+1}]", disable=(not master))
 
         while batch is not None:
             images_batch, keypoints_3d_gt, kpts_2d_cpn, kpts_2d_cpn_crop = batch
-            # [B,256,192,3], [B,1,17,3], [B,17,2], [B,17,2]
+            # if data_mode = 'image': [B,256,192,3], [B,1,17,3], [B,17,2], [B,17,2]
+            # if data_mode = 'video': [B,T,256,192,3], [B,T,17,3], [B,T,17,2], [B,T,17,2]
             # Flip-test logic (if needed)
             if (not is_train) and config.val.flip_test:
                 pred = model(images_batch[:, 0],
@@ -186,10 +203,11 @@ def one_epoch_full(model, criterion, optimizer, config, dataloader, device, epoc
                 pred_flip = model(images_batch[:, 1],
                                   kpts_2d_cpn[:, 1],
                                   kpts_2d_cpn_crop[:, 1].clone())
-                pred_flip[:, :, :, 0] *= -1
-                pred_flip[:, :, joints_left + joints_right] = pred_flip[:, :, joints_right + joints_left]
-                keypoints_3d_pred = torch.mean(torch.cat((pred, pred_flip), dim=1),
-                                               dim=1, keepdim=True)
+                pred_flip[..., 0] *= -1
+                pred_flip[..., joints_left + joints_right, :] = pred_flip[..., joints_right + joints_left, :]
+
+                # TODO
+                keypoints_3d_pred = torch.mean(torch.cat((pred, pred_flip), dim=1), dim=1, keepdim=True)
                 del pred_flip
             else:
                 keypoints_3d_pred = model(images_batch, kpts_2d_cpn, kpts_2d_cpn_crop)
@@ -290,7 +308,11 @@ def main(args):
         config.model.backbone.checkpoint = 'data/pretrained/coco/CPN50_256x192.pth.tar'
         config.model.poseformer.base_dim = 256
 
-    model = CA_PF(config, device)
+    if config.data_mode == 'video': # By Bradley
+        memory_config = config.pop('memory_config')
+        model = CA_PF_VIDEO(config, device, memory_cfg=memory_config)
+    else:
+        model = CA_PF(config, device)
 
     experiment_dir, writer = (None, None)
     if master:

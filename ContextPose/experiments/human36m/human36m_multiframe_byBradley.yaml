@@ -1,0 +1,91 @@
+title: "human36m"
+kind: "human36m"
+azureroot: ""
+batch_output: true
+vis_freq: 1000
+vis_n_elements: 10
+
+model:  
+  image_shape: [192, 256]
+
+  init_weights: false
+  checkpoint: ""
+
+  backbone:
+    type: "hrnet_32"  # ["hrnet_48", "cpn"]
+    num_final_layer_channel: 17
+    num_joints: 17
+    num_layers: 152
+    
+    init_weights: true
+    fix_weights: true
+    checkpoint: "data/pretrained/coco/pose_hrnet_w32_256x192.pth"
+    # checkpoint: "data/pretrained/coco/pose_hrnet_w48_256x192.pth"
+    # checkpoint: "data/pretrained/coco/CPN50_256x192.pth.tar"
+
+  poseformer:
+    embed_dim_ratio: 128
+    depth: 4
+
+loss:
+  criterion: "MPJPE"
+  scale_keypoints_3d: 0.1
+
+  use_volumetric_ce_loss: true
+  volumetric_ce_loss_weight: 0.01
+
+  use_global_attention_loss: True
+  global_attention_loss_weight: 1000000
+
+dataset:
+  kind: "human36m"
+  data_format: ""
+  root: "../H36M-Toolbox/images/"
+  train_labels_path: "data/h36m_train.pkl"
+  val_labels_path: "data/h36m_validation.pkl"
+  
+  # By Bradley
+  train_dataset: "Human36MMultiViewDataset_MultiFrame"
+  
+train:
+  n_objects_per_epoch: 15000
+  n_epochs: 9999
+
+  batch_size: 32  # 512 for other backbones, 256 for cpn
+
+  optimizer: 'Adam'
+  backbone_lr: 0.0
+  backbone_lr_step: [1000]
+  backbone_lr_factor: 0.1
+  process_features_lr: 0.001
+  volume_net_lr: 0.00064  # 0.00032 for cpn
+  volume_net_lr_decay: 0.99
+  volume_net_lr_step: [1000]
+  volume_net_lr_factor: 0.5
+
+  with_damaged_actions: true
+  undistort_images: true
+
+  scale_bbox: 1.0
+
+  shuffle: true
+  randomize_n_views: true
+  min_n_views: 1
+  max_n_views: 1
+  num_workers: 14
+
+val:
+  batch_size: 512  # 512 for fixed backbone, 256 for cpn
+
+  flip_test: true
+  with_damaged_actions: true
+  undistort_images: true
+
+  scale_bbox: 1.0
+
+  shuffle: false
+  randomize_n_views: true
+  min_n_views: 1
+  max_n_views: 1
+  num_workers: 14
+  retain_every_n_frames_in_test: 1
