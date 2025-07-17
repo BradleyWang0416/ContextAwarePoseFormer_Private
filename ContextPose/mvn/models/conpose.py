@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 from torch.nn.init import trunc_normal_
+from torch.nn import TransformerDecoderLayer
 
 from mvn.models import pose_hrnet
 from mvn.models.networks import network
@@ -55,7 +56,6 @@ class CA_PF_VIDEO(CA_PF):
             self.memory_temporal_stride_for_eval = memory_cfg.get('memory_temporal_stride_for_eval', 1)
             num_memory_attention_layer = memory_cfg.get('num_memory_attention_layer', 1)
             memory_attention_layer_cfg = memory_cfg.get('memory_attention_layer')
-            raise NotImplementedError
             memory_attention_layer_cls = globals().get(memory_attention_layer_cfg.pop('type'))
             self.memory_attention_layers = nn.ModuleList(
                 [memory_attention_layer_cls(**memory_attention_layer_cfg) for _ in range(num_memory_attention_layer)]

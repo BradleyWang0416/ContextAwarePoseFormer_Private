@@ -12,7 +12,7 @@ from torch.utils.data import Dataset
 from mvn.models.loss import MPJPE, P_MPJPE, N_MPJPE, MPJVE
 from mvn.utils.img import crop_image
 
-from .human36m import Human36MMultiViewDataset
+from .human36m import Human36MMultiViewDataset, Human36MSingleViewDataset
 
 retval = {
     'subject_names': ['S1', 'S5', 'S6', 'S7', 'S8', 'S9', 'S11'],
@@ -81,7 +81,71 @@ class Human36MMultiViewDataset_MultiFrame(Human36MMultiViewDataset):
         joints_2d_cpn_crop_clip = np.stack(joints_2d_cpn_crop_clip, axis=0)  # [T,17,2]
         
         return video_clip, joints_3d_clip, joints_2d_cpn_clip, joints_2d_cpn_crop_clip
-    
+
+
+class Human36MSingleViewDataset_MultiFrame(Human36MMultiViewDataset_MultiFrame):
+    def __init__(self,
+                 root='/Vol1/dbstore/datasets/Human3.6M/processed/',
+                 labels_path='/Vol1/dbstore/datasets/Human3.6M/extra/human36m-multiview-labels-SSDbboxes.npy',
+                 pred_results_path=None,
+                 image_shape=(192, 256),
+                 train=False,
+                 test=False,
+                 retain_every_n_frames_in_test=1,
+                 with_damaged_actions=False,
+                 cuboid_size=2000.0,
+                 scale_bbox=1.5,
+                 norm_image=True,
+                 kind="mpii",
+                 undistort_images=False,
+                 ignore_cameras=[],
+                 crop=True,
+                 erase=False,
+                 rank = None,
+                 world_size = None,
+                 data_format='',
+                 frame=1
+                 ):
+        super(Human36MSingleViewDataset_MultiFrame, self).__init__(
+            root=root,
+            labels_path=labels_path,
+            pred_results_path=pred_results_path,
+            image_shape=image_shape,
+            train=train,
+            test=test,
+            retain_every_n_frames_in_test=retain_every_n_frames_in_test,
+            with_damaged_actions=with_damaged_actions,
+            cuboid_size=cuboid_size,
+            scale_bbox=scale_bbox,
+            norm_image=norm_image,
+            kind=kind,
+            undistort_images=undistort_images,
+            ignore_cameras=ignore_cameras,
+            crop=crop,
+            erase=erase,
+            data_format=data_format,
+            frame=frame,
+        )
+
+        self.pred_results_path = pred_results_path
+        self.labels_action_idx = (np.array([label['action'] for label in self.labels])-2) * 2 + \
+                                 (np.array([label['subaction'] for label in self.labels])-1)
+        self.labels_subject_idx = np.array([retval['subject_names'].index('S'+str(label['subject'])) for label in self.labels])
+        self.dist_size = self.prepare_labels(rank, world_size)
+        self.video_idx = np.array([label['video_id'] for label in self.labels])
+
+    def prepare_labels(self, rank, world_size):
+        if rank is not None and world_size is not None:
+            n = len(self.clip_indices) // world_size
+            dist_size = [n if i < world_size - 1 else len(self.clip_indices) - n * (world_size - 1)\
+                for i in range(world_size)]
+            start = n * rank
+            end = len(self.clip_indices) if rank == world_size - 1 else start + n
+            self.clip_indices = self.clip_indices[start:end]
+            if self.keypoints_3d_pred is not None:
+                self.keypoints_3d_pred = self.keypoints_3d_pred[start:end]
+            return dist_size
+
 
 def split_clips (vid_list, n_frames, data_stride, if_resample=True, randomness=True):
     result = []

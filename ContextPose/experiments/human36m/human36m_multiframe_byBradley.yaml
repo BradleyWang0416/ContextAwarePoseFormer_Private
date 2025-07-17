@@ -46,6 +46,7 @@ dataset:
   
   # By Bradley
   train_dataset: "Human36MMultiViewDataset_MultiFrame"
+  val_dataset: "Human36MSingleViewDataset_MultiFrame"
   
 train:
   n_objects_per_epoch: 15000

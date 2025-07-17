@@ -8,7 +8,7 @@ no_mem_embed_dims: 32
 num_memory_attention_layer: 2
 memory_attention_layer:
   type: TransformerDecoderLayer
-  embed_dims: 32
-  num_heads: 4
-  feedforward_channels: 32 * 4
-  qkv_bias: true
+  d_model: 128
+  nhead: 8
+  dim_feedforward: 512
+  batch_first: true

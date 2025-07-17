@@ -311,6 +311,12 @@ def main(args):
     if config.data_mode == 'video': # By Bradley
         memory_config = config.pop('memory_config')
         model = CA_PF_VIDEO(config, device, memory_cfg=memory_config)
+
+        model_ckpt = torch.load('checkpoint/best_epoch_hrnet_32.bin', weights_only=True)['model']
+        for k in list(model_ckpt.keys()):
+            model_ckpt[k.replace("module.", "")] = model_ckpt.pop(k)
+        ret = model.load_state_dict(model_ckpt, strict=False)
+        print(ret)
     else:
         model = CA_PF(config, device)
 
@@ -342,10 +348,10 @@ def main(args):
     # Load model checkpoint for evaluation
     if args.eval:
         ckpt_path = f'checkpoint/best_epoch_{args.backbone}.bin'
-        checkpoint = torch.load(ckpt_path)['model']
+        checkpoint = torch.load(ckpt_path, weights_only=True)['model']
         for k in list(checkpoint.keys()):
             checkpoint[k.replace("module.", "")] = checkpoint.pop(k)
-        ret = model.load_state_dict(checkpoint, strict=True)
+        ret = model.load_state_dict(checkpoint, strict=False)   # 'strict' changed to False [By Bradley 250717]
         print(ret)
         print(f"Loaded checkpoint from {ckpt_path}")
 
