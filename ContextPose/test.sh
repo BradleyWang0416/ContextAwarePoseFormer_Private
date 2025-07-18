@@ -1,6 +1,6 @@
 #!/bin/bash
-# mode='debug'
-mode='test'
+mode='debug'
+# mode='test'
 
 data_mode="video"
 # data_mode="image"
@@ -17,7 +17,7 @@ logdir="./logs"
 
 if [ "$mode" = "debug" ]; then
     CUDA_VISIBLE_DEVICES=7 \
-    python -m debugpy --listen 5678 --wait-for-client train.py \
+    python -m debugpy --listen 5679 --wait-for-client train.py \
     --config $config \
     --backbone $backbone \
     --logdir $logdir \
@@ -28,7 +28,9 @@ if [ "$mode" = "debug" ]; then
 else
     CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6 \
     torchrun \
-    --nproc_per_node=7 --master_port=2345 train.py \
+    --nproc_per_node=7 \
+    --master_port=2345 \
+    train.py \
     --config $config \
     --backbone $backbone \
     --logdir $logdir \

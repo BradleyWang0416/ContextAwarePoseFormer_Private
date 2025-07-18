@@ -14,17 +14,22 @@ def UNCERTAINTY(sigma_list, keypoints_pred, keypoints_gt):
 
 
 class MPJPE(nn.Module):
-	def __init__(self):
+	def __init__(self, return_mean=True):
 		super().__init__()
+		self.return_mean = return_mean
 
 	def forward(self, keypoints_pred, keypoints_gt):
 		assert keypoints_pred.shape == keypoints_gt.shape
-		return torch.mean(torch.norm(keypoints_pred - keypoints_gt, dim=len(keypoints_gt.shape)-1))
+		if self.return_mean:
+			return torch.mean(torch.norm(keypoints_pred - keypoints_gt, dim=len(keypoints_gt.shape)-1))
+		else:
+			return torch.norm(keypoints_pred - keypoints_gt, dim=len(keypoints_gt.shape)-1)
 
 
 class P_MPJPE(nn.Module):
-	def __init__(self):
+	def __init__(self, return_mean=True):
 		super().__init__()
+		self.return_mean = return_mean
 
 	def forward(self, keypoints_pred, keypoints_gt):
 		"""
@@ -32,23 +37,23 @@ class P_MPJPE(nn.Module):
 		often referred to as "Protocol #2" in many papers.
 		"""
 		assert keypoints_pred.shape == keypoints_gt.shape
-
-		muX = np.mean(keypoints_gt, axis=1, keepdims=True)
+		# [N,17,3]
+		muX = np.mean(keypoints_gt, axis=1, keepdims=True)	# average over joints
 		muY = np.mean(keypoints_pred, axis=1, keepdims=True)
 
-		X0 = keypoints_gt - muX
-		Y0 = keypoints_pred - muY
+		X0 = keypoints_gt - muX		# [N,17,3]
+		Y0 = keypoints_pred - muY	# [N,17,3]
 
-		normX = np.sqrt(np.sum(X0**2, axis=(1, 2), keepdims=True))
+		normX = np.sqrt(np.sum(X0**2, axis=(1, 2), keepdims=True))	# [N,17,3] => sum => [N,1,1]. sum joints and channels
 		normY = np.sqrt(np.sum(Y0**2, axis=(1, 2), keepdims=True))
 
 		X0 /= normX
 		Y0 /= normY
 
-		H = np.matmul(X0.transpose(0, 2, 1), Y0)
-		U, s, Vt = np.linalg.svd(H)
-		V = Vt.transpose(0, 2, 1)
-		R = np.matmul(V, U.transpose(0, 2, 1))
+		H = np.matmul(X0.transpose(0, 2, 1), Y0)	# [N,3,17] x [N,17,3] => [N,3,3]
+		U, s, Vt = np.linalg.svd(H)	# U: [N,3,3], Vt: [N,3,3]
+		V = Vt.transpose(0, 2, 1)	# [N,3,3]
+		R = np.matmul(V, U.transpose(0, 2, 1))	# [N,3,3]
 
 		# Avoid improper rotations (reflections), i.e. rotations with det(R) = -1
 		sign_detR = np.sign(np.expand_dims(np.linalg.det(R), axis=1))
@@ -62,15 +67,18 @@ class P_MPJPE(nn.Module):
 		t = muX - a*np.matmul(muY, R) # Translation
 
 		# Perform rigid transformation on the input
-		keypoints_pred_aligned = a*np.matmul(keypoints_pred, R) + t
+		keypoints_pred_aligned = a*np.matmul(keypoints_pred, R) + t		# [N,17,3]
 
 		# Return MPJPE
-		return np.mean(np.linalg.norm(keypoints_pred_aligned - keypoints_gt, axis=len(keypoints_gt.shape)-1))
-
+		if self.return_mean:
+			return np.mean(np.linalg.norm(keypoints_pred_aligned - keypoints_gt, axis=len(keypoints_gt.shape)-1))	# [N,17,3] => norm => [N,17] => mean => scalar
+		else:
+			return np.linalg.norm(keypoints_pred_aligned - keypoints_gt, axis=len(keypoints_gt.shape)-1)	# [N,17]
 
 class N_MPJPE(nn.Module):
-	def __init__(self):
+	def __init__(self, return_mean=True):
 		super().__init__()
+		self.return_mean = return_mean
 
 	def forward(self, keypoints_pred, keypoints_gt):
 		"""
@@ -82,11 +90,12 @@ class N_MPJPE(nn.Module):
 		norm_keypoints_pred = torch.mean(torch.sum(keypoints_pred**2, dim=3, keepdim=True), dim=2, keepdim=True)
 		norm_keypoints_gt = torch.mean(torch.sum(keypoints_gt*keypoints_pred, dim=3, keepdim=True), dim=2, keepdim=True)
 		scale = norm_keypoints_gt / norm_keypoints_pred
-		return MPJPE()(scale * keypoints_pred, keypoints_gt)#[0]
+		return MPJPE(return_mean=self.return_mean)(scale * keypoints_pred, keypoints_gt)	#[0]
 
 class MPJVE(nn.Module):
-	def __init__(self):
+	def __init__(self, return_mean=True):
 		super().__init__()
+		self.return_mean = return_mean
 
 	def forward(self, keypoints_pred, keypoints_gt):
 # def mean_velocity_error(predicted, target):
@@ -98,7 +107,10 @@ class MPJVE(nn.Module):
 		velocity_predicted = np.diff(keypoints_pred, axis=0)
 		velocity_target = np.diff(keypoints_gt, axis=0)
 
-		return np.mean(np.linalg.norm(velocity_predicted - velocity_target, axis=len(keypoints_gt.shape)-1))
+		if self.return_mean:
+			return np.mean(np.linalg.norm(velocity_predicted - velocity_target, axis=len(keypoints_gt.shape)-1))
+		else:
+			return np.linalg.norm(velocity_predicted - velocity_target, axis=len(keypoints_gt.shape)-1)
 
 
 class KeypointsMSELoss(nn.Module):

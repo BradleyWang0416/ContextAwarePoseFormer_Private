@@ -47,6 +47,8 @@ class CA_PF_VIDEO(CA_PF):
     def __init__(self, *args, memory_cfg=None, **kwargs):
         super().__init__(*args, **kwargs)
 
+        
+
         self.num_feature_levels = memory_cfg.get('num_feature_levels', 4)   # 4 for hrnet
         self.num_maskmem = memory_cfg.get('num_maskmem', 0)
         if self.num_maskmem > 0:
@@ -65,11 +67,11 @@ class CA_PF_VIDEO(CA_PF):
 
         self.memory_switch = True
     
-    def _prepare_memory_conditioned_features(self, frame_idx, is_init_cond_frame, current_vision_feats, feat_sizes, output_dict, num_frames):
+    def _prepare_memory_conditioned_features(self, frame_idx, is_init_cond_frame, current_feats_and_inputs, feat_sizes, output_dict, num_frames):
         # current_vision_feats: [[B,32,64,48], [B,64,32,24], [B,128,16,12], [B,256,8,6]]
         if self.num_maskmem == 0 or not self.memory_switch:  # Disable memory and skip fusion
-            pix_feat = current_vision_feats
-            return pix_feat
+            feats_and_inputs = current_feats_and_inputs
+            return feats_and_inputs
 
         raise NotImplementedError
         # Step 1: condition the visual features of the current frame on previous memories
@@ -124,52 +126,58 @@ class CA_PF_VIDEO(CA_PF):
         pix_feat_with_mem = x.permute(0, 2, 1).reshape(-1, C, H, W)       # [B,3072,1024]->[B,1024,3072]->[B,1024,64,48]
         return pix_feat_with_mem    # [B,1024,64,48]
 
-    def _track_step(self, frame_idx, is_init_cond_frame, current_vision_feats, current_keypoints_2d_cpn, current_keypoints_2d_cpn_crop, feat_sizes, output_dict, num_frames):
+    def _track_step(self, frame_idx, is_init_cond_frame, current_feats_and_inputs, feat_sizes, output_dict, num_frames):
         current_out = {}
-        pix_feat = self._prepare_memory_conditioned_features(
+        feats_and_inputs = self._prepare_memory_conditioned_features(
             frame_idx=frame_idx,
             is_init_cond_frame=is_init_cond_frame,
-            current_vision_feats=current_vision_feats,
+            current_feats_and_inputs=current_feats_and_inputs,
             feat_sizes=feat_sizes,
             output_dict=output_dict,
             num_frames=num_frames,
             )
-        # pix_feat: [[B,32,64,48], [B,64,32,24], [B,128,16,12], [B,256,8,6]]
+        # CAN BE WITH OR WITHOUT MEMORY
+        # feats_and_inputs: {
+        #       'vision_feats': [[B,32,64,48], [B,64,32,24], [B,128,16,12], [B,256,8,6]]
+        #       'keypoints_2d_cpn': [B,17,2]
+        #       'keypoints_2d_cpn_crop': [B,17,2]
+        # }
         
-        ca_pf_outputs = self.volume_net(current_keypoints_2d_cpn, current_keypoints_2d_cpn_crop, pix_feat) # [B,1,17,3]
+        #TODO
+        ca_pf_outputs = self.volume_net(feats_and_inputs['keypoints_2d_cpn'], feats_and_inputs['keypoints_2d_cpn_crop'], feats_and_inputs['vision_feats']) # [B,1,17,3]
 
-        return current_out, ca_pf_outputs, pix_feat
+        return current_out, ca_pf_outputs, feats_and_inputs
 
-    def track_step(self, frame_idx, is_init_cond_frame, current_vision_feats, current_keypoints_2d_cpn, current_keypoints_2d_cpn_crop, feat_sizes, output_dict, num_frames, run_mem_encoder=True):
-        current_out, ca_pf_outputs, pix_feat = self._track_step(frame_idx, is_init_cond_frame, current_vision_feats, current_keypoints_2d_cpn, current_keypoints_2d_cpn_crop, feat_sizes, output_dict, num_frames)
+    def track_step(self, frame_idx, is_init_cond_frame, current_feats_and_inputs, feat_sizes, output_dict, num_frames, run_mem_encoder=True):
+        current_out, ca_pf_outputs, feats_and_inputs = self._track_step(frame_idx, is_init_cond_frame, current_feats_and_inputs, feat_sizes, output_dict, num_frames)
         
         keypoints_3d_pred = ca_pf_outputs   # keypoints_3d_pred: [B,1,17,3]
 
         current_out['keypoints_3d_pred'] = keypoints_3d_pred
 
-        self._encode_memory_in_output(current_vision_feats, current_keypoints_2d_cpn, current_keypoints_2d_cpn_crop, feat_sizes, run_mem_encoder, keypoints_3d_pred, current_out)
+        self._encode_memory_in_output(current_feats_and_inputs, feat_sizes, run_mem_encoder, keypoints_3d_pred, current_out)
         
         return current_out
     
-    def _encode_memory_in_output(self, current_vision_feats, current_keypoints_2d_cpn, current_keypoints_2d_cpn_crop, feat_sizes, run_mem_encoder, keypoints_3d_pred, current_out):
+    def _encode_memory_in_output(self, current_feats_and_inputs, feat_sizes, run_mem_encoder, keypoints_3d_pred, current_out):
         if run_mem_encoder and self.num_maskmem > 0:
             raise NotImplementedError
             maskmem_features = self._encode_new_memory(
                 current_vision_feats=current_vision_feats,
                 feat_sizes=feat_sizes,
-                pred_heatmaps=pred_heatmaps,
+                keypoints_3d_pred=keypoints_3d_pred,
             )
             current_out["maskmem_features"] = maskmem_features
         else:
             current_out["maskmem_features"] = None
     
-    def _encode_new_memory(self, current_vision_feats, feat_sizes, pred_heatmaps):
+    def _encode_new_memory(self, current_vision_feats, feat_sizes, keypoints_3d_pred):
         raise NotImplementedError
         C, H, W = feat_sizes[-1]  # top-level (lowest-resolution) feature size
         pix_feat = current_vision_feats[-1]  # [B,1024,64,48]
 
         # 1. 上采样 heatmap 到特征图大小（[B, 17, 64, 48]）
-        resized_heatmap = F.interpolate(pred_heatmaps, size=(H, W), mode='bilinear', align_corners=False)  # [B, 17, 64, 48]
+        resized_heatmap = F.interpolate(keypoints_3d_pred, size=(H, W), mode='bilinear', align_corners=False)  # [B, 17, 64, 48]
         # 2. 聚合所有关键点通道 → [B, 1, 64, 48]：作为注意力掩码
         mask_for_mem = resized_heatmap.mean(dim=1, keepdim=True)  # [B, 1, 64, 48]
 
@@ -199,12 +207,13 @@ class CA_PF_VIDEO(CA_PF):
         for frame_idx in range(num_frames):
             is_init_cond_frame = (frame_idx in init_cond_frames)
 
-            current_vision_feats = [x[:, frame_idx] for x in vision_feats]
-            # current_vision_feats: [[B,32,64,48], [B,64,32,24], [B,128,16,12], [B,256,8,6]]
-            current_keypoints_2d_cpn, current_keypoints_2d_cpn_crop = video_keypoints_2d_cpn[:, frame_idx], video_keypoints_2d_cpn_crop[:, frame_idx]
-            # [B,17,2], [B,17,2]
+            current_feats_and_inputs = {
+                'vision_feats': [x[:, frame_idx] for x in vision_feats],    # [[B,32,64,48], [B,64,32,24], [B,128,16,12], [B,256,8,6]]
+                'keypoints_2d_cpn': video_keypoints_2d_cpn[:, frame_idx],   # [B,17,2]
+                'keypoints_2d_cpn_crop': video_keypoints_2d_cpn_crop[:, frame_idx], # [B,17,2]
+            }
 
-            current_out = self.track_step(frame_idx, is_init_cond_frame, current_vision_feats, current_keypoints_2d_cpn, current_keypoints_2d_cpn_crop, feat_sizes, output_dict, num_frames)
+            current_out = self.track_step(frame_idx, is_init_cond_frame, current_feats_and_inputs, feat_sizes, output_dict, num_frames)
 
             add_output_as_cond_frame = is_init_cond_frame
             if add_output_as_cond_frame:
@@ -238,7 +247,7 @@ class CA_PF_VIDEO(CA_PF):
         }
         return backbone_out
 
-    def forward(self, videos, video_keypoints_2d_cpn, video_keypoints_2d_cpn_crop): # [B,T,256,192,3], [B,T,17,2], [B,T,17,2]
+    def forward_sam2_style(self, videos, video_keypoints_2d_cpn, video_keypoints_2d_cpn_crop): # [B,T,256,192,3], [B,T,17,2], [B,T,17,2]
         device = video_keypoints_2d_cpn.device
         B, T, J, _ = video_keypoints_2d_cpn.shape
         video_keypoints_2d_cpn_crop[..., :2] /= torch.tensor([192//2, 256//2], device=device)
@@ -252,6 +261,18 @@ class CA_PF_VIDEO(CA_PF):
             keypoints_3d_pred = previous_stages_out[frame_idx]['keypoints_3d_pred']     # [B,1,17,3]
             video_keypoints_3d_pred.append(keypoints_3d_pred)
         video_keypoints_3d_pred = torch.cat(video_keypoints_3d_pred, dim=1)  # [B,T,17,3]
+
+        return video_keypoints_3d_pred
+    
+    def forward(self, videos, video_keypoints_2d_cpn, video_keypoints_2d_cpn_crop): # [B,T,256,192,3], [B,T,17,2], [B,T,17,2]
+        device = video_keypoints_2d_cpn.device
+        B, T, J, _ = video_keypoints_2d_cpn.shape
+        video_keypoints_2d_cpn_crop[..., :2] /= torch.tensor([192//2, 256//2], device=device)
+        video_keypoints_2d_cpn_crop[..., :2] -= torch.tensor([1, 1], device=device)
+
+        backbone_out = self.forward_image(videos)
+
+        video_keypoints_3d_pred = self.volume_net(video_keypoints_2d_cpn, video_keypoints_2d_cpn_crop, backbone_out['vision_features'])
 
         return video_keypoints_3d_pred
 

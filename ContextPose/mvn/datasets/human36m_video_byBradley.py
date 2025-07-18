@@ -53,7 +53,7 @@ class Human36MMultiViewDataset_MultiFrame(Human36MMultiViewDataset):
     def split_video(self):
         video_id_list = [label['video_id'] for label in self.labels]
         
-        clip_indices = split_clips(video_id_list, self.frame, data_stride=1, if_resample=True, randomness=False)
+        clip_indices = split_clips(video_id_list, self.frame, data_stride=self.frame, if_resample=True, randomness=False)
 
         return clip_indices
         
@@ -128,9 +128,12 @@ class Human36MSingleViewDataset_MultiFrame(Human36MMultiViewDataset_MultiFrame):
         )
 
         self.pred_results_path = pred_results_path
-        self.labels_action_idx = (np.array([label['action'] for label in self.labels])-2) * 2 + \
-                                 (np.array([label['subaction'] for label in self.labels])-1)
+
+        self.labels_action_idx = (np.array([label['action'] for label in self.labels])-2) * 2 + (np.array([label['subaction'] for label in self.labels])-1)     # size = (len(self.labels),)
         self.labels_subject_idx = np.array([retval['subject_names'].index('S'+str(label['subject'])) for label in self.labels])
+        self.clips_action_idx = self.labels_action_idx[self.clip_indices][:,0]      # size = (len(self.clip_indices), frame) --> (len(self.clip_indices),). every clip performs the same action
+        self.clips_subject_idx = self.labels_subject_idx[self.clip_indices][:,0]    # size = (len(self.clip_indices), frame) --> (len(self.clip_indices),). every clip comes from the same subject
+
         self.dist_size = self.prepare_labels(rank, world_size)
         self.video_idx = np.array([label['video_id'] for label in self.labels])
 
@@ -145,6 +148,93 @@ class Human36MSingleViewDataset_MultiFrame(Human36MMultiViewDataset_MultiFrame):
             if self.keypoints_3d_pred is not None:
                 self.keypoints_3d_pred = self.keypoints_3d_pred[start:end]
             return dist_size
+        
+    def evaluate_using_pred(self, keypoints_gt, keypoints_3d_predicted):
+        def evaluate_by_actions(self, keypoints_gt, keypoints_3d_predicted, mask=None):
+            if mask is None:
+                mask = np.ones(keypoints_gt.shape[0], dtype=bool)
+
+            e1 = MPJPE(return_mean=True)
+            e2 = P_MPJPE(return_mean=True)
+            e3 = N_MPJPE(return_mean=True)
+            ev = MPJVE(return_mean=True)
+
+            action_scores = {}
+
+            num_frames = keypoints_gt.shape[1]
+
+            for action_idx in range(len(retval['action_names'])):
+                action_mask = (self.clips_action_idx == action_idx) & mask  # len = number of clips
+                clip_count = np.count_nonzero(action_mask)
+
+                if clip_count == 0:
+                    continue
+
+                frame_count = num_frames * clip_count
+
+                kp3d_pred = keypoints_3d_predicted[action_mask].reshape(-1, 17, 3)  # [NT,17,3]
+                kp3d_gt = keypoints_gt[action_mask].reshape(-1, 17, 3)  # [NT,17,3]
+
+
+                loss_3d_pos = frame_count * e1(kp3d_pred, kp3d_gt).item()
+                loss_3d_pos_procrustes = frame_count * e2(kp3d_pred.cpu().numpy(), kp3d_gt.cpu().numpy())
+                loss_3d_vel = frame_count * ev(kp3d_pred.cpu().numpy(), kp3d_gt.cpu().numpy())
+
+                action_scores[retval['action_names'][action_idx]] = {
+                    'MPJPE': loss_3d_pos,
+                    'P_MPJPE': loss_3d_pos_procrustes,
+                    'MPJVE': loss_3d_vel,
+                    'frame_count': frame_count
+                }
+
+            action_names_without_trials = [name[:-2] for name in retval['action_names'] if name.endswith('-1')]
+
+            for action_name_without_trial in action_names_without_trials:
+                combined_score = {
+                    'MPJPE': 0.0,
+                    'P_MPJPE': 0.0,
+                    # 'N_MPJPE': 0.0,
+                    'MPJVE': 0.0,
+                    'frame_count': 0,
+                }
+
+                for trial in 1, 2:
+                    action_name = f"{action_name_without_trial}-{trial}"
+                    if action_name not in action_scores:
+                        continue
+                    combined_score['MPJPE' ] += action_scores[action_name]['MPJPE']
+                    combined_score['P_MPJPE' ] += action_scores[action_name]['P_MPJPE']
+                    # combined_score['N_MPJPE' ] += action_scores[action_name]['N_MPJPE']
+                    combined_score['MPJVE' ] += action_scores[action_name]['MPJVE']
+                    combined_score['frame_count'] += action_scores[action_name]['frame_count']
+                    del action_scores[action_name]
+
+                if combined_score['frame_count'] > 0:
+                    action_scores[action_name_without_trial] = combined_score
+
+            for k in action_scores.keys():
+                frame_count = action_scores[k]['frame_count']
+                action_scores[k] = {
+                    'MPJPE': action_scores[k]['MPJPE'] / frame_count,
+                    'P_MPJPE': action_scores[k]['P_MPJPE'] / frame_count,
+                    'MPJVE': action_scores[k]['MPJVE'] / frame_count,
+                    # 'N_MPJPE': action_scores[k]['N_MPJPE'] / frame_count
+                }
+
+            return action_scores
+
+        action_scores = evaluate_by_actions(self, keypoints_gt, keypoints_3d_predicted)
+
+        return action_scores
+
+    def evaluate(self, keypoints_gt, keypoints_3d_predicted, proj_matricies_batch=None, config=None,  split_by_subject=False, transfer_cmu_to_human36m=False, transfer_human36m_to_human36m=False):
+        if keypoints_3d_predicted.shape != keypoints_gt.shape:
+            raise ValueError(f'`keypoints_3d_predicted` shape should be {keypoints_gt.shape}, got {keypoints_3d_predicted.shape}')
+
+        result = self.evaluate_using_pred(keypoints_gt, keypoints_3d_predicted)
+
+        return result
+
 
 
 def split_clips (vid_list, n_frames, data_stride, if_resample=True, randomness=True):

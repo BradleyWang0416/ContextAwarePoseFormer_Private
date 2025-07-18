@@ -206,8 +206,9 @@ def one_epoch_full(model, criterion, optimizer, config, dataloader, device, epoc
                 pred_flip[..., 0] *= -1
                 pred_flip[..., joints_left + joints_right, :] = pred_flip[..., joints_right + joints_left, :]
 
-                # TODO
-                keypoints_3d_pred = torch.mean(torch.cat((pred, pred_flip), dim=1), dim=1, keepdim=True)
+                # MODIFIED BY BRADLEY 250717
+                # keypoints_3d_pred = torch.mean(torch.cat((pred, pred_flip), dim=1), dim=1, keepdim=True)
+                keypoints_3d_pred = torch.mean(torch.stack((pred, pred_flip), dim=1), dim=1)
                 del pred_flip
             else:
                 keypoints_3d_pred = model(images_batch, kpts_2d_cpn, kpts_2d_cpn_crop)
@@ -272,7 +273,8 @@ def one_epoch_full(model, criterion, optimizer, config, dataloader, device, epoc
 def init_distributed(args):
     if "WORLD_SIZE" not in os.environ or int(os.environ["WORLD_SIZE"]) < 1:
         return False
-    torch.cuda.set_device(args.local_rank)
+    # torch.cuda.set_device(args.local_rank)
+    torch.cuda.set_device(int(os.environ["LOCAL_RANK"]))
     assert os.environ["MASTER_PORT"], "Set MASTER_PORT or use PyTorch launcher"
     assert os.environ["RANK"], "Use PyTorch launcher and specify RANK"
     os.environ['PYTHONHASHSEED'] = str(args.seed)
@@ -291,7 +293,8 @@ def main(args):
         rank, world_size = int(os.environ["RANK"]), int(os.environ["WORLD_SIZE"])
         master = (rank == 0)
 
-    device = torch.device(args.local_rank if is_distributed else 0)
+    # device = torch.device(args.local_rank if is_distributed else 0)
+    device = torch.device(int(os.environ["LOCAL_RANK"]) if is_distributed else 0)
     config.train.n_iters_per_epoch = None
 
     # Backbone-specific config
@@ -401,7 +404,8 @@ def main(args):
         print(f"Trainable parameter count: {model_params}")
 
     if is_distributed:
-        model = DistributedDataParallel(model, device_ids=[device], output_device=args.local_rank)
+        # model = DistributedDataParallel(model, device_ids=[device], output_device=args.local_rank)
+        model = DistributedDataParallel(model, device_ids=[device], output_device=int(os.environ["LOCAL_RANK"]))
 
     # ------------------------------------------------------------------------
     # Training or Evaluation

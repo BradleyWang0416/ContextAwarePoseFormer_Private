@@ -114,7 +114,8 @@ class data_prefetcher_multiframe_byBradley(data_prefetcher):
             elif self.backbone == 'cpn':
                 videos_batch = videos_batch / 255.0 - self.mean  # for CPN
             
-            video_keypoints_3d_gt -= video_keypoints_3d_gt[..., 0:1, :]
+            # video_keypoints_3d_gt -= video_keypoints_3d_gt[..., 0:1, :]   # should avoid in-place operation. may not work as expected.
+            video_keypoints_3d_gt = video_keypoints_3d_gt - video_keypoints_3d_gt[..., 0:1, :]
 
             if random.random() <= 0.5 and self.is_train:
                 videos_batch = torch.flip(videos_batch, [-2])
