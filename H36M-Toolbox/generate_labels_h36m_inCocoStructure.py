@@ -40,6 +40,26 @@ def _infer_box(pose3d, camera, rootIdx):
                          camera['cy']).flatten()
     return np.array([tl2d[0], tl2d[1], br2d[0], br2d[1]])
 
+def _infer_box_LCN(pose3d, camera, rootIdx):
+    root_joint = pose3d[rootIdx, :]
+    tl_joint = root_joint.copy()
+    tl_joint[0] -= 1000.0   # 相机坐标系下的根关节 x 坐标减去 1 m
+    tl_joint[1] -= 1000.0    # 相机坐标系下的根关节 y 坐标减去 0.9 m
+    br_joint = root_joint.copy()
+    br_joint[0] += 1000.0   # 相机坐标系下的根关节 x 坐标加上 1 m
+    br_joint[1] += 1000.0   # 相机坐标系下的根关节 y 坐标加上 1.1 m
+    # x 方向: ±1000 mm. 假设人体宽度在 2 米范围内
+    # y 方向: -900 mm (向头部扩展), +1100 mm (向脚部扩展). 假设人体高度在 2 米范围内. y 正方向在相机坐标系中通常是向下 (脚部方向)
+    tl_joint = np.reshape(tl_joint, (1, 3))
+    br_joint = np.reshape(br_joint, (1, 3))
+
+    tl2d = _weak_project(tl_joint, camera['fx'], camera['fy'], camera['cx'],
+                         camera['cy']).flatten()
+
+    br2d = _weak_project(br_joint, camera['fx'], camera['fy'], camera['cx'],
+                         camera['cy']).flatten()
+    return np.array([tl2d[0], tl2d[1], br2d[0], br2d[1]])
+
 
 def _weak_project(pose3d, fx, fy, cx, cy):
     pose2d = pose3d[:, :2] / pose3d[:, 2:3]
@@ -55,6 +75,16 @@ def _get_bbox_xywh(center, scale, w=200, h=200):
     x = center[0] - w / 2
     y = center[1] - h / 2
     return [x, y, w, h]
+
+def camera_to_image_frame(pose3d, box, camera, rootIdx):
+    rectangle_3d_size = 2000.0  # 单位: mm
+    ratio = (box[2] - box[0] + 1) / rectangle_3d_size   # 单位: 像素/mm
+    pose3d_image_frame = np.zeros_like(pose3d)
+    pose3d_image_frame[:, :2] = _weak_project(
+        pose3d.copy(), camera['fx'], camera['fy'], camera['cx'], camera['cy'])
+    pose3d_depth = ratio * (pose3d[:, 2] - pose3d[rootIdx, 2])
+    pose3d_image_frame[:, 2] = pose3d_depth
+    return pose3d_image_frame
 
 if __name__ == '__main__':
     subject_list = [1, 5, 6, 7, 8, 9, 11]
@@ -132,8 +162,8 @@ if __name__ == '__main__':
                         imagebasename = basename.replace(' ', '_')     # 'Directions_1.54138969'
                         imagesubdir = osp.join(subject, f"{subject}_{imagebasename}")  # 'S1/S1_Directions_1.54138969'
 
-                        annofile3d_camera = osp.join('/data1/wxs/DATASETS/Human3.6M_MMPose/extracted', subject, 'MyPoseFeatures', 'D3_Positions_mono', annotname)
-                        annofile2d = osp.join('/data1/wxs/DATASETS/Human3.6M_MMPose/extracted', subject, 'MyPoseFeatures', 'D2_Positions', annotname)
+                        annofile3d_camera = osp.join('/data2/wxs/DATASETS/Human3.6M_MMPose/extracted', subject, 'MyPoseFeatures', 'D3_Positions_mono', annotname)
+                        annofile2d = osp.join('/data2/wxs/DATASETS/Human3.6M_MMPose/extracted', subject, 'MyPoseFeatures', 'D2_Positions', annotname)
 
                         data = cdflib.CDF(annofile3d_camera)
                         pose3d_camera = np.array(data.varget("Pose"))
@@ -165,7 +195,7 @@ if __name__ == '__main__':
                             imagename = f"{subject}_{imagebasename}_{i+1:06d}.jpg"
                             imagepath = osp.join(imagesubdir, imagename)
 
-                            data_numpy = cv2.imread(osp.join('/data1/wxs/DATASETS/Human3.6M_MMPose/processed/images_fps50', imagepath), cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
+                            data_numpy = cv2.imread(osp.join('/data2/wxs/DATASETS/Human3.6M_MMPose/processed/images_fps50', imagepath), cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
                             h, w, _ = data_numpy.shape
 
                             imageinfo = {
@@ -186,10 +216,13 @@ if __name__ == '__main__':
                             datum['keypoints_cpn'] = pose2d_cpn[i]  # (17,2)
                             datum['keypoints_3d'] = pose3d_camera[i, joint_idx, :]  # (17,3)
 
-                            box = _infer_box(datum['keypoints_3d'], camera_dict, 0)     # [x_min, y_min, x_max, y_max] 格式, 4个数字分别代表: 左上角x坐标, 左上角y坐标, 右下角x坐标, 右下角y坐标
+                            box = _infer_box(datum['keypoints_3d'], camera_dict, 0)     # [x_min, y_min, x_max, y_max] 格式, 4个数字分别代表: 左上角x坐标, 左上角y坐标, 右下角x坐标, 右下角y坐标. 单位: 像素
                             center = (0.5 * (box[0] + box[2]), 0.5 * (box[1] + box[3]))
                             # scale = ((box[2] - box[0]) / 200.0, (box[3] - box[1]) / 200.0)
                             scale = ((box[2] - box[0]), (box[3] - box[1]))
+
+                            joint_3d_image = camera_to_image_frame(datum['keypoints_3d'], box, camera_dict, rootIdx=0)
+
                             datum['center'] = center
                             datum['scale'] = scale
                             datum['bbox_xyxy'] = box
