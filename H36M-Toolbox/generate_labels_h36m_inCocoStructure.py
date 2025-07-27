@@ -2,6 +2,9 @@ import pickle
 import h5py
 import cv2
 import numpy as np
+
+np.set_printoptions(suppress=True)
+
 import os.path as osp
 from scipy.io import loadmat
 from subprocess import call
@@ -14,6 +17,7 @@ import sys
 import json
 
 from common.camera import *
+from viz_skel_seq import viz_skel_seq_anim
 
 from transform import get_affine_transform, affine_transform, \
     normalize_screen_coordinates, _infer_box, _weak_project 
@@ -135,18 +139,30 @@ if __name__ == '__main__':
     train_db = {'images': [], 'annotations': [], 'categories': categories}
     test_db = {'images': [], 'annotations': [], 'categories': categories}
 
+    POSE3D_WORLD_ALL = []
+    POSE3D_CAM_ALL = []
+    POSE2D_ALL = []
+
     for data_split, subject_list_split in zip(['test', 'train'], [test_list, train_list]):
         global_id = 0
         video_id = 0
         for s in subject_list_split:
             for a in action_list:
                 for sa in subaction_list:
+                    
+                    
+                    filename_wo_camera = metadata.get_base_filename(f'S{s:d}', f'{a:d}', f'{sa:d}', metadata.camera_ids[0]).split('.')[0]  # 'Directions 1'
+                    annofile3d_world = osp.join('/data2/wxs/DATASETS/Human3.6M_ByBradley/extracted', f'S{s}', 'D3_Positions', f'{filename_wo_camera}.npy')
+                    pose3d_world = np.load(annofile3d_world)    # (T,17,3). 单位: mm
+                    POSE3D_WORLD_ALL.append(pose3d_world)
+
+
                     for c in camera_list:
 
                         camera = camera_data[(s, c)]
                         camera_dict = {}
                         camera_dict['R'] = camera[0]
-                        camera_dict['T'] = camera[1]
+                        camera_dict['T'] = camera[1]    # (3,1). TODO. 单位: ???
                         camera_dict['fx'] = camera[2][0]
                         camera_dict['fy'] = camera[2][1]
                         camera_dict['cx'] = camera[3][0]
@@ -167,7 +183,14 @@ if __name__ == '__main__':
 
                         data = cdflib.CDF(annofile3d_camera)
                         pose3d_camera = np.array(data.varget("Pose"))
-                        pose3d_camera = np.reshape(pose3d_camera, (-1, 32, 3))
+                        pose3d_camera = np.reshape(pose3d_camera, (-1, 32, 3))[:, joint_idx, :]
+                        # pose3d_camera 和 pose3d_world 应满足如下关系:
+                        # pose3d_camera = np.einsum('cw,tjw->tjc', camera_dict['R'], (pose3d_world - camera_dict['T'].reshape(1, 1, 3)))
+
+                        POSE3D_CAM_ALL.append(pose3d_camera)
+
+                        # viz_skel_seq_anim({'world':pose3d_world[:10], 'cam':pose3d_camera[:10]},fs=0.5,lim3d=5000)
+
 
                         if basename.split('.')[0] not in keypoints[f'S{s:d}'].keys():
                             if "TakingPhoto" in basename:
@@ -180,7 +203,10 @@ if __name__ == '__main__':
 
                         data = cdflib.CDF(annofile2d)
                         pose2d_gt = np.array(data.varget("Pose"))
-                        pose2d_gt = np.reshape(pose2d_gt, (-1, 32, 2))
+                        pose2d_gt = np.reshape(pose2d_gt, (-1, 32, 2))[:, joint_idx, :]
+                        POSE2D_ALL.append(pose2d_gt)
+                        continue
+
                         pose2d_cpn = keypoints['S{:d}'.format(s)][basename.split('.')[0]][c-1]
 
                         nposes = min(pose3d_camera.shape[0], pose2d_gt.shape[0])
@@ -212,9 +238,9 @@ if __name__ == '__main__':
                             datum['video_id'] = video_id
                             datum['iscrowd'] = 0
 
-                            datum['keypoints'] = pose2d_gt[i, joint_idx, :] # (17,2)
+                            datum['keypoints'] = pose2d_gt[i, :, :] # (17,2)
                             datum['keypoints_cpn'] = pose2d_cpn[i]  # (17,2)
-                            datum['keypoints_3d'] = pose3d_camera[i, joint_idx, :]  # (17,3)
+                            datum['keypoints_3d'] = pose3d_camera[i, :, :]  # (17,3)
 
                             box = _infer_box(datum['keypoints_3d'], camera_dict, 0)     # [x_min, y_min, x_max, y_max] 格式, 4个数字分别代表: 左上角x坐标, 左上角y坐标, 右下角x坐标, 右下角y坐标. 单位: 像素
                             center = (0.5 * (box[0] + box[2]), 0.5 * (box[1] + box[3]))
@@ -242,9 +268,12 @@ if __name__ == '__main__':
                                 test_db['annotations'].append(datum)
 
 
-        with open(f'/data1/wxs/ContextAware-PoseFormer/H36M-Toolbox/h36m_coco_{data_split}.json', 'w') as f:
-            if data_split == 'train':
-                json.dump(train_db, f)
-            else:
-                json.dump(test_db, f)
+        # with open(f'/data1/wxs/ContextAware-PoseFormer/H36M-Toolbox/h36m_coco_{data_split}.json', 'w') as f:
+        #     if data_split == 'train':
+        #         json.dump(train_db, f)
+        #     else:
+        #         json.dump(test_db, f)
 
+    POSE3D_WORLD_ALL = np.concatenate(POSE3D_WORLD_ALL, axis=0)
+    POSE3D_CAM_ALL = np.concatenate(POSE3D_CAM_ALL, axis=0)
+    POSE2D_ALL = np.concatenate(POSE2D_ALL, axis=0)
