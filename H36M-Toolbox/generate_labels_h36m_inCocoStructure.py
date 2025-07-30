@@ -200,6 +200,11 @@ if __name__ == '__main__':
                             else:
                                 print(basename.split('.')[0] + " is missing!")
                                 continue
+                        
+                        """
+                        box = _infer_box(pose3d_camera[0], camera_dict, 0)
+                        camera_to_image_frame(pose3d_camera[0], box, camera_dict, rootIdx=0)
+                        """
 
                         data = cdflib.CDF(annofile2d)
                         pose2d_gt = np.array(data.varget("Pose"))
