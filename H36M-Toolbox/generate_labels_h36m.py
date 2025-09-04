@@ -72,6 +72,7 @@ if __name__ == '__main__':
     train_db = []
     test_db = []
     cnt = 0
+    name_map = {}
     for s in subject_list:
         for a in action_list:
             for sa in subaction_list:
@@ -97,8 +98,10 @@ if __name__ == '__main__':
                     basename = metadata.get_base_filename('S{:d}'.format(s), '{:d}'.format(a), '{:d}'.format(sa), metadata.camera_ids[c-1])
                     annotname = basename + '.cdf'
 
-                    print(s, a, sa)
+                    print(s, a, sa, c)
                     print(basename)
+                    name_map[subdir] = basename
+                    continue
 
                     subject = 'S' + str(s)
                     # annofile3d = osp.join('extracted', subject, 'Poses_D3_Positions_mono_universal', annotname)
