@@ -85,7 +85,10 @@ def main():
                     img_ref = os.path.join(img_folder, img_list[0])
                     vid_subact_info[split][source_subact] = (num_img_subact, img_ref)
                     vid_subact_frameId[split][source_subact] = vid_frameId[split][source_subact]
-
+    
+    """保存 vid_subact_frameId 到 Human3.6M for MotionBERT 文件夹中
+    joblib.dump(vid_subact_frameId, "/data2/wxs/DATASETS/Human3.6M_for_MotionBERT/globalID_per_video.pkl")  # {'train': {'s_01_act_02_cam_01': {'01': [...], '02': [...]}, ...}, 'test': {'s_09_act_02_subact_01_ca_01': [...], ...}}
+    """
     
     """以下是有问题的文件夹, 全部是测试集, 训练集没问题
     /data2/wxs/DATASETS/Human3.6M_MMPose/processed/images_fps50/S9/S9_Greeting.54138969: 1447 vs 2711
@@ -106,7 +109,7 @@ def main():
     /data2/wxs/DATASETS/Human3.6M_MMPose/processed/images_fps50/S11/S11_Directions.60457274: 1825 vs 1552
     """
 
-    """
+    """将图片和2D姿态打印并保存, 检查是否对应正确
     for split in ['train', 'test']:
         data_split = h36m_for_motionbert[split]
         poses2d_all = data_split['joint_2d']
@@ -128,6 +131,8 @@ def main():
                 check(img_ref, poses2d_all[global_id, ..., :2], fig_title, save=True)
     """
     
+    """保存 image-level source 到 Human3.6M for MotionBERT 文件夹中
+    source_images_all = {}
     for split in ['train', 'test']:
         data_split = h36m_for_motionbert[split]
         sources_all = data_split['source']
@@ -138,11 +143,38 @@ def main():
             for source_no_subact in vid_subact_info[split].keys():
                 for subact in vid_subact_info[split][source_no_subact]:
                     img_cnt, img_ref = vid_subact_info[split][source_no_subact][subact]
-                    global_id = vid_subact_frameId[split][source_no_subact][subact][0]
+                    assert img_ref[-10:] == '000001.jpg'
+                    global_indices = vid_subact_frameId[split][source_no_subact][subact]
+                    assert img_cnt == len(global_indices)
+
+                    img_basename = img_ref[:-10]  # 去掉 '000001.jpg'
+                    for global_id, local_id in zip(global_indices, range(img_cnt)):
+                        source_img = f"{img_basename}{local_id+1:06d}.jpg"
+                        assert source_img_all[global_id] is None
+                        assert os.path.exists(source_img)
+                        source_img_all[global_id] = source_img
+            assert source_img_all.count(None) == 0           
+
         else:
             for source_subact in vid_subact_info[split].keys():
                 img_cnt, img_ref = vid_subact_info[split][source_subact]
-                global_id = vid_subact_frameId[split][source_subact][0]
+                assert img_ref[-10:] == '000001.jpg'
+                global_indices = vid_subact_frameId[split][source_subact]
+                assert img_cnt == len(global_indices)
+
+                img_basename = img_ref[:-10]  # 去掉 '000001.jpg'
+                for global_id, local_id in zip(global_indices, range(img_cnt)):
+                    source_img = f"{img_basename}{local_id+1:06d}.jpg"
+                    assert source_img_all[global_id] is None
+                    assert os.path.exists(source_img)
+                    source_img_all[global_id] = source_img        
+            assert source_img_all.count(None) == 42028
+
+        source_images_all[split] = source_img_all
+
+    joblib.dump(source_images_all, "/data2/wxs/DATASETS/Human3.6M_for_MotionBERT/images_source.pkl")  # {'train': [...], 'test': [...]}
+    """
+
 
 
 def check(img, pose2d, fig_title, save=False):
