@@ -101,7 +101,7 @@ if __name__ == '__main__':
                     print(s, a, sa, c)
                     print(basename)
                     name_map[subdir] = basename
-                    continue
+                    # continue
 
                     subject = 'S' + str(s)
                     # annofile3d = osp.join('extracted', subject, 'Poses_D3_Positions_mono_universal', annotname)

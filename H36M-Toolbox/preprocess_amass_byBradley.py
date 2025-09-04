@@ -17,14 +17,7 @@ import joblib
 from common import transforms
 from viz_skel_seq import viz_skel_seq_anim
 
-with open("/data2/wxs/DATASETS/Human3.6M_MMPose/processed/annotation_body3d/cameras.pkl", 'rb') as f:
-    cameras = pickle.load(f)
 
-with open('/data2/wxs/DATASETS/AMASS_for_MotionBERT/amass_joints_h36m_60.pkl', 'rb') as f:
-    amass_db = pickle.load(f)
-
-video_info_list = pd.read_csv("/data2/wxs/DATASETS/AMASS_for_MotionBERT/clip_list.csv")
-video_info_list = video_info_list.values
 
 def _infer_box(pose3d, fx, fy, cx, cy, rootIdx=0):
     root_joint = pose3d[..., rootIdx, :]
@@ -127,128 +120,140 @@ def split_valid_sequences(valid_indices, min_length=16):
         splits.append((start, prev))
     return splits
 
-# 基于 H36M 的统计数据, 详见 /home/wxs/ContextAwarePoseFormer_Private/H36M-Toolbox/generate_labels_h36m_inCocoStructure.py
-world_coordinate_x_min = -1.5438152
-world_coordinate_x_max = 2.1130056
-world_coordinate_y_min = -2.1536294
-world_coordinate_y_max = 2.7382566
+def main():
+    with open("/data2/wxs/DATASETS/Human3.6M_MMPose/processed/annotation_body3d/cameras.pkl", 'rb') as f:
+        cameras = pickle.load(f)
 
-POSE3D_WORLD_ALL = {'train': [], 'test': []}
-POSE3D_CAM_ALL = {'train': [], 'test': []}
-POSE3D_IMAGE_ALL = {'train': [], 'test': []}
-POSE2D_ALL = {'train': [], 'test': []}
-SOURCE_ALL = {'train': [], 'test': []}
-CAM_ALL = {'train': [], 'test': []}
-FACTOR_2_5D = {'train': [], 'test': []}
+    with open('/data2/wxs/DATASETS/AMASS_for_MotionBERT/amass_joints_h36m_60.pkl', 'rb') as f:
+        amass_db = pickle.load(f)
 
-camera_source = 'h36m'  # h36m; virtual
+    video_info_list = pd.read_csv("/data2/wxs/DATASETS/AMASS_for_MotionBERT/clip_list.csv")
+    video_info_list = video_info_list.values
 
-video_id = [191]
-video_id = [30,32,34,35,39,42,43,44,46,55,61,68,69,71,73,99,103,188,190,191,195,198,202,211,212,215,224,11190,11194,11244]  # out of bounds (x_min < world_coordinate_x_min and x_max > world_coordinate_x_max and y_min < world_coordinate_y_min and y_max > world_coordinate_y_max)
-assert len(amass_db) == len(video_info_list)
-for video_id, joint_3d_world in enumerate(tqdm(amass_db)):
-    # 世界坐标系, 单位: m
-    video_info = video_info_list[video_id]
-    video_amass_source = video_info[1]
-    if 'BioMotionLab' in video_amass_source:
-        data_split = 'test'
-    else:
-        data_split = 'train'
-    num_frames = joint_3d_world.shape[0]
+    # 基于 H36M 的统计数据, 详见 /home/wxs/ContextAwarePoseFormer_Private/H36M-Toolbox/generate_labels_h36m_inCocoStructure.py
+    world_coordinate_x_min = -1.5438152
+    world_coordinate_x_max = 2.1130056
+    world_coordinate_y_min = -2.1536294
+    world_coordinate_y_max = 2.7382566
 
-    camera_key = random.choice(list(cameras.keys()))
-    camera = cameras[camera_key]
-    # dict_keys(['R', 'T', 'c', 'f', 'k', 'p', 'w', 'h', 'name', 'id'])
-    #   R, T: extrinsics. camera rotation and translation
-    #   c, f: intrinsics. camera center and focal length
-    #   k, p: distortion coefficients
-    #   w, h: image width and height
-    img_w, img_h = camera['w'], camera['h']  # 单位: 像素
-    center = camera['c']    # (2,1)
-    focal = camera['f']      # (2,1)
-    cx, cy = center[0, 0], center[1, 0]
-    fx, fy = focal[0, 0], focal[1, 0]
-    # fov_tol = 1.2 * (0.5 ** 0.5)
-    # img_w, img_h = 1000, 1000
-    # cx, cy = img_w / 2, img_h / 2
-    # fx = (img_w * img_w + img_h * img_h) ** 0.5
-    # fy = fx
-    if camera_source == 'h36m':
-        R = camera['R'] # (3,3), 单位: m
-        R = R.T     # MMPOSE 的旋转矩阵转置后才是 H36M-TOOLBOX 中的旋转矩阵. See: sapiens/pose/tools/preprocess_h36m.py::line275 >>> R = (R_x @ R_y @ R_z).T
-        T = camera['T'] # (3,1), 单位: m. 即相机在世界坐标系中的位置
-        joint_3d_cam = np.einsum('cw,tjw->tjc', R, (joint_3d_world - T.reshape(1, 1, 3)))   # (T,17,3)
-        cam_position = T.copy().reshape(3)   # (3,)
-    elif camera_source == 'virtual':
-        R = camera['R']
-        R = R.T
-        _, dist = create_camera(w=img_w, f=fx)
-        T = joint_3d_world[num_frames//2, 0, :] - np.einsum('wc,w->c', R, dist)
-        T = T[:, None]
-        joint_3d_cam = np.einsum('cw,tjw->tjc', R, (joint_3d_world - T.reshape(1, 1, 3)))   # (T,17,3)
-        cam_position = T.copy().reshape(3)   # (3,)
-    # 相机坐标系, 单位: m
+    POSE3D_WORLD_ALL = {'train': [], 'test': []}
+    POSE3D_CAM_ALL = {'train': [], 'test': []}
+    POSE3D_IMAGE_ALL = {'train': [], 'test': []}
+    POSE2D_ALL = {'train': [], 'test': []}
+    SOURCE_ALL = {'train': [], 'test': []}
+    CAM_ALL = {'train': [], 'test': []}
+    FACTOR_2_5D = {'train': [], 'test': []}
 
-    joint_3d_cam = joint_3d_cam * 1000  # 转换为毫米, 单位: mm
+    camera_source = 'h36m'  # h36m; virtual
 
-    
-    bboxes = _infer_box(joint_3d_cam, fx, fy, cx, cy, rootIdx=0) # (T,4). 单位: 像素
-    joint_3d_image, ratio = camera_to_image_frame(joint_3d_cam, bboxes, fx, fy, cx, cy, rootIdx=0)   # (T,17,3). 单位: 像素. ratio: 像素/mm
-    factor_2_5d = 1 / ratio[:,0]        # (T,). 单位: mm/像素
+    video_id = [191]
+    video_id = [30,32,34,35,39,42,43,44,46,55,61,68,69,71,73,99,103,188,190,191,195,198,202,211,212,215,224,11190,11194,11244]  # out of bounds (x_min < world_coordinate_x_min and x_max > world_coordinate_x_max and y_min < world_coordinate_y_min and y_max > world_coordinate_y_max)
+    assert len(amass_db) == len(video_info_list)
+    for video_id, joint_3d_world in enumerate(tqdm(amass_db)):
+        # 世界坐标系, 单位: m
+        video_info = video_info_list[video_id]
+        video_amass_source = video_info[1]
+        if 'BioMotionLab' in video_amass_source:
+            data_split = 'test'
+        else:
+            data_split = 'train'
+        num_frames = joint_3d_world.shape[0]
 
-    joint_2d = joint_3d_image[..., :2].copy()  # (T,17,2). 单位: 像素
-    joint_2d_Yflip = joint_2d.copy()
-    joint_2d_Yflip[..., 1] = img_h - joint_2d_Yflip[..., 1]  # Y轴翻转, 单位: 像素
+        camera_key = random.choice(list(cameras.keys()))
+        camera = cameras[camera_key]
+        # dict_keys(['R', 'T', 'c', 'f', 'k', 'p', 'w', 'h', 'name', 'id'])
+        #   R, T: extrinsics. camera rotation and translation
+        #   c, f: intrinsics. camera center and focal length
+        #   k, p: distortion coefficients
+        #   w, h: image width and height
+        img_w, img_h = camera['w'], camera['h']  # 单位: 像素
+        center = camera['c']    # (2,1)
+        focal = camera['f']      # (2,1)
+        cx, cy = center[0, 0], center[1, 0]
+        fx, fy = focal[0, 0], focal[1, 0]
+        # fov_tol = 1.2 * (0.5 ** 0.5)
+        # img_w, img_h = 1000, 1000
+        # cx, cy = img_w / 2, img_h / 2
+        # fx = (img_w * img_w + img_h * img_h) ** 0.5
+        # fy = fx
+        if camera_source == 'h36m':
+            R = camera['R'] # (3,3), 单位: m
+            R = R.T     # MMPOSE 的旋转矩阵转置后才是 H36M-TOOLBOX 中的旋转矩阵. See: sapiens/pose/tools/preprocess_h36m.py::line275 >>> R = (R_x @ R_y @ R_z).T
+            T = camera['T'] # (3,1), 单位: m. 即相机在世界坐标系中的位置
+            joint_3d_cam = np.einsum('cw,tjw->tjc', R, (joint_3d_world - T.reshape(1, 1, 3)))   # (T,17,3)
+            cam_position = T.copy().reshape(3)   # (3,)
+        elif camera_source == 'virtual':
+            R = camera['R']
+            R = R.T
+            _, dist = create_camera(w=img_w, f=fx)
+            T = joint_3d_world[num_frames//2, 0, :] - np.einsum('wc,w->c', R, dist)
+            T = T[:, None]
+            joint_3d_cam = np.einsum('cw,tjw->tjc', R, (joint_3d_world - T.reshape(1, 1, 3)))   # (T,17,3)
+            cam_position = T.copy().reshape(3)   # (3,)
+        # 相机坐标系, 单位: m
 
-    valid_frame_indices = get_valid_frame_indices(joint_2d_Yflip, img_w, img_h)
-    valid_video_slices = split_valid_sequences(valid_frame_indices, min_length=16)
+        joint_3d_cam = joint_3d_cam * 1000  # 转换为毫米, 单位: mm
 
-    for valid_video_slice in valid_video_slices:
-        num_slice_frames = valid_video_slice[1] - valid_video_slice[0] + 1
-        source = f"vid{video_id}_cam{camera_key[0]}-{camera_key[1]}_frame{valid_video_slice[0]}-{valid_video_slice[1]}"
+        
+        bboxes = _infer_box(joint_3d_cam, fx, fy, cx, cy, rootIdx=0) # (T,4). 单位: 像素
+        joint_3d_image, ratio = camera_to_image_frame(joint_3d_cam, bboxes, fx, fy, cx, cy, rootIdx=0)   # (T,17,3). 单位: 像素. ratio: 像素/mm
+        factor_2_5d = 1 / ratio[:,0]        # (T,). 单位: mm/像素
 
-        # SOURCE_ALL[data_split] = SOURCE_ALL[data_split] + [source] * num_slice_frames
-        # POSE3D_WORLD_ALL[data_split].append(joint_3d_world[valid_video_slice[0]: valid_video_slice[1] + 1])
-        # POSE3D_CAM_ALL[data_split].append(joint_3d_cam[valid_video_slice[0]: valid_video_slice[1] + 1])
-        # POSE2D_ALL[data_split].append(joint_2d[valid_video_slice[0]: valid_video_slice[1] + 1])
-        # CAM_ALL[data_split] = CAM_ALL[data_split] + [camera] * num_slice_frames
+        joint_2d = joint_3d_image[..., :2].copy()  # (T,17,2). 单位: 像素
+        joint_2d_Yflip = joint_2d.copy()
+        joint_2d_Yflip[..., 1] = img_h - joint_2d_Yflip[..., 1]  # Y轴翻转, 单位: 像素
 
-        # POSE3D_IMAGE_ALL[data_split].append(joint_3d_image[valid_video_slice[0]: valid_video_slice[1] + 1])
-        # FACTOR_2_5D[data_split].append(factor_2_5d[valid_video_slice[0]: valid_video_slice[1] + 1])
+        valid_frame_indices = get_valid_frame_indices(joint_2d_Yflip, img_w, img_h)
+        valid_video_slices = split_valid_sequences(valid_frame_indices, min_length=16)
+
+        for valid_video_slice in valid_video_slices:
+            num_slice_frames = valid_video_slice[1] - valid_video_slice[0] + 1
+            source = f"vid{video_id}_cam{camera_key[0]}-{camera_key[1]}_frame{valid_video_slice[0]}-{valid_video_slice[1]}"
+
+            # SOURCE_ALL[data_split] = SOURCE_ALL[data_split] + [source] * num_slice_frames
+            # POSE3D_WORLD_ALL[data_split].append(joint_3d_world[valid_video_slice[0]: valid_video_slice[1] + 1])
+            # POSE3D_CAM_ALL[data_split].append(joint_3d_cam[valid_video_slice[0]: valid_video_slice[1] + 1])
+            # POSE2D_ALL[data_split].append(joint_2d[valid_video_slice[0]: valid_video_slice[1] + 1])
+            # CAM_ALL[data_split] = CAM_ALL[data_split] + [camera] * num_slice_frames
+
+            # POSE3D_IMAGE_ALL[data_split].append(joint_3d_image[valid_video_slice[0]: valid_video_slice[1] + 1])
+            # FACTOR_2_5D[data_split].append(factor_2_5d[valid_video_slice[0]: valid_video_slice[1] + 1])
 
 
-    """
-    可视化相机位置以及朝向
-    fig = plt.figure(figsize=(10, 10))
-    ax = fig.add_subplot(111, projection='3d')
-    ax.view_init(azim=-90, elev=90)
-    ax.set_xlabel('X'); ax.set_ylabel('Y'); ax.set_zlabel('Z')
-    ax.set_xlim3d([-4, 4]); ax.set_ylim3d([-4, 4]); ax.set_zlim3d([-4, 4])
-    ax.scatter(*T[:,0], s=100)
-    ax.quiver(*T[:,0], *R[2], length=0.5)
+        """
+        可视化相机位置以及朝向
+        fig = plt.figure(figsize=(10, 10))
+        ax = fig.add_subplot(111, projection='3d')
+        ax.view_init(azim=-90, elev=90)
+        ax.set_xlabel('X'); ax.set_ylabel('Y'); ax.set_zlabel('Z')
+        ax.set_xlim3d([-4, 4]); ax.set_ylim3d([-4, 4]); ax.set_zlim3d([-4, 4])
+        ax.scatter(*T[:,0], s=100)
+        ax.quiver(*T[:,0], *R[2], length=0.5)
 
-    viz_skel_seq_anim(joint_3d_world[::10],fs=0.5,lim3d=4,azim=-90,elev=90)
-    viz_skel_seq_anim(joint_3d_cam[::10],fs=0.5,lim3d=4,azim=-90,elev=90)
-    viz_skel_seq_anim(T.reshape(1,1,3),fs=0.5,lim3d=4,azim=-90,elev=90)
-    viz_skel_seq_anim(joint_2d_Yflip[::10],fs=0.5,lim2d=[0,1000])
-    """
+        viz_skel_seq_anim(joint_3d_world[::10],fs=0.5,lim3d=4,azim=-90,elev=90)
+        viz_skel_seq_anim(joint_3d_cam[::10],fs=0.5,lim3d=4,azim=-90,elev=90)
+        viz_skel_seq_anim(T.reshape(1,1,3),fs=0.5,lim3d=4,azim=-90,elev=90)
+        viz_skel_seq_anim(joint_2d_Yflip[::10],fs=0.5,lim2d=[0,1000])
+        """
 
-# POSE3D_WORLD_ALL['train'] = np.concatenate(POSE3D_WORLD_ALL['train'], axis=0)
-# POSE3D_WORLD_ALL['test'] = np.concatenate(POSE3D_WORLD_ALL['test'], axis=0)
-# POSE3D_CAM_ALL['train'] = np.concatenate(POSE3D_CAM_ALL['train'], axis=0)
-# POSE3D_CAM_ALL['test'] = np.concatenate(POSE3D_CAM_ALL['test'], axis=0)
-# POSE2D_ALL['train'] = np.concatenate(POSE2D_ALL['train'], axis=0)
-# POSE2D_ALL['test'] = np.concatenate(POSE2D_ALL['test'], axis=0)
-# POSE3D_IMAGE_ALL['train'] = np.concatenate(POSE3D_IMAGE_ALL['train'], axis=0)
-# POSE3D_IMAGE_ALL['test'] = np.concatenate(POSE3D_IMAGE_ALL['test'], axis=0)
-# FACTOR_2_5D['train'] = np.concatenate(FACTOR_2_5D['train'], axis=0)
-# FACTOR_2_5D['test'] = np.concatenate(FACTOR_2_5D['test'], axis=0)
+    # POSE3D_WORLD_ALL['train'] = np.concatenate(POSE3D_WORLD_ALL['train'], axis=0)
+    # POSE3D_WORLD_ALL['test'] = np.concatenate(POSE3D_WORLD_ALL['test'], axis=0)
+    # POSE3D_CAM_ALL['train'] = np.concatenate(POSE3D_CAM_ALL['train'], axis=0)
+    # POSE3D_CAM_ALL['test'] = np.concatenate(POSE3D_CAM_ALL['test'], axis=0)
+    # POSE2D_ALL['train'] = np.concatenate(POSE2D_ALL['train'], axis=0)
+    # POSE2D_ALL['test'] = np.concatenate(POSE2D_ALL['test'], axis=0)
+    # POSE3D_IMAGE_ALL['train'] = np.concatenate(POSE3D_IMAGE_ALL['train'], axis=0)
+    # POSE3D_IMAGE_ALL['test'] = np.concatenate(POSE3D_IMAGE_ALL['test'], axis=0)
+    # FACTOR_2_5D['train'] = np.concatenate(FACTOR_2_5D['train'], axis=0)
+    # FACTOR_2_5D['test'] = np.concatenate(FACTOR_2_5D['test'], axis=0)
 
-# joblib.dump(POSE3D_WORLD_ALL, '/data2/wxs/DATASETS/AMASS_ByBradley/joint_3d_world.pkl', compress=3)
-# joblib.dump(POSE3D_CAM_ALL, '/data2/wxs/DATASETS/AMASS_ByBradley/joint_3d_cam.pkl', compress=3)
-# joblib.dump(POSE2D_ALL, '/data2/wxs/DATASETS/AMASS_ByBradley/joint_2d_image.pkl', compress=3)
-# joblib.dump(SOURCE_ALL, '/data2/wxs/DATASETS/AMASS_ByBradley/source.pkl', compress=0)
-# joblib.dump(CAM_ALL, '/data2/wxs/DATASETS/AMASS_ByBradley/cam_params.pkl', compress=0)
-# joblib.dump(POSE3D_IMAGE_ALL, '/data2/wxs/DATASETS/AMASS_ByBradley/joint_3d_image.pkl', compress=3)
-# joblib.dump(FACTOR_2_5D, '/data2/wxs/DATASETS/AMASS_ByBradley/factor_2_5d.pkl', compress=0)
+    # joblib.dump(POSE3D_WORLD_ALL, '/data2/wxs/DATASETS/AMASS_ByBradley/joint_3d_world.pkl', compress=3)
+    # joblib.dump(POSE3D_CAM_ALL, '/data2/wxs/DATASETS/AMASS_ByBradley/joint_3d_cam.pkl', compress=3)
+    # joblib.dump(POSE2D_ALL, '/data2/wxs/DATASETS/AMASS_ByBradley/joint_2d_image.pkl', compress=3)
+    # joblib.dump(SOURCE_ALL, '/data2/wxs/DATASETS/AMASS_ByBradley/source.pkl', compress=0)
+    # joblib.dump(CAM_ALL, '/data2/wxs/DATASETS/AMASS_ByBradley/cam_params.pkl', compress=0)
+    # joblib.dump(POSE3D_IMAGE_ALL, '/data2/wxs/DATASETS/AMASS_ByBradley/joint_3d_image.pkl', compress=3)
+    # joblib.dump(FACTOR_2_5D, '/data2/wxs/DATASETS/AMASS_ByBradley/factor_2_5d.pkl', compress=0)
 
+if __name__ == "__main__":
+    main()
