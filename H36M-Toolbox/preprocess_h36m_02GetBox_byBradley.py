@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import pickle
 
 from viz_skel_seq import viz_skel_seq_anim
-from preprocess_amass_byBradley import _infer_box
+from preprocess_amass_01GetPose_byBradley import _infer_box
 
 def main():
     with open("/data2/wxs/DATASETS/h36m_name_map.json", "r") as f:

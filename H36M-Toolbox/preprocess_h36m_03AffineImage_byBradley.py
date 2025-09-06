@@ -8,7 +8,7 @@ import cv2
 from tqdm import tqdm
 
 from viz_skel_seq import viz_skel_seq_anim
-from preprocess_amass_byBradley import _infer_box
+from preprocess_amass_01GetPose_byBradley import _infer_box
 
 output_image_shape = (192, 256) # (W,H)
 
