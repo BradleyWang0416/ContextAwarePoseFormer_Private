@@ -15,7 +15,7 @@ def main():
         cameras_dict = pickle.load(f)
 
     h36m_for_motionbert_path = "/data2/wxs/DATASETS/Human3.6M_for_MotionBERT/h36m_sh_conf_cam_source_final.pkl"
-    h36m_for_motionbert = joblib.load(h36m_for_motionbert_path)            
+    h36m_for_motionbert = joblib.load(h36m_for_motionbert_path)
 
     vid_subact_frameId = joblib.load("/data2/wxs/DATASETS/Human3.6M_for_MotionBERT/globalID_per_video.pkl")
 
