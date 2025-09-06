@@ -150,6 +150,7 @@ def main():
     video_id = [30,32,34,35,39,42,43,44,46,55,61,68,69,71,73,99,103,188,190,191,195,198,202,211,212,215,224,11190,11194,11244]  # out of bounds (x_min < world_coordinate_x_min and x_max > world_coordinate_x_max and y_min < world_coordinate_y_min and y_max > world_coordinate_y_max)
     assert len(amass_db) == len(video_info_list)
     for video_id, joint_3d_world in enumerate(tqdm(amass_db)):
+        # video_id 对应 AMASS_for_MotionBERT/clip_list.csv 中的序号
         # 世界坐标系, 单位: m
         video_info = video_info_list[video_id]
         video_amass_source = video_info[1]
