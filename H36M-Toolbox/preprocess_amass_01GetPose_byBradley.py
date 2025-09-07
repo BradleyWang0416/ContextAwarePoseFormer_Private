@@ -13,6 +13,7 @@ import matplotlib.animation as animation
 import pandas as pd
 from tqdm import tqdm
 import joblib
+from collections import defaultdict
 
 from common import transforms
 from viz_skel_seq import viz_skel_seq_anim
@@ -144,6 +145,8 @@ def main():
     CAM_ALL = {'train': [], 'test': []}
     FACTOR_2_5D = {'train': [], 'test': []}
 
+    VIDEO_MAP_DICT = {'train': defaultdict(dict), 'test': defaultdict(dict)}
+
     camera_source = 'h36m'  # h36m; virtual
 
     video_id = [191]
@@ -211,7 +214,9 @@ def main():
             num_slice_frames = valid_video_slice[1] - valid_video_slice[0] + 1
             source = f"vid{video_id}_cam{camera_key[0]}-{camera_key[1]}_frame{valid_video_slice[0]}-{valid_video_slice[1]}"
 
-            # SOURCE_ALL[data_split] = SOURCE_ALL[data_split] + [source] * num_slice_frames
+            VIDEO_MAP_DICT[data_split][video_id][source] = range(len(SOURCE_ALL[data_split]), len(SOURCE_ALL[data_split]) + num_slice_frames)
+
+            SOURCE_ALL[data_split] = SOURCE_ALL[data_split] + [source] * num_slice_frames
             # POSE3D_WORLD_ALL[data_split].append(joint_3d_world[valid_video_slice[0]: valid_video_slice[1] + 1])
             # POSE3D_CAM_ALL[data_split].append(joint_3d_cam[valid_video_slice[0]: valid_video_slice[1] + 1])
             # POSE2D_ALL[data_split].append(joint_2d[valid_video_slice[0]: valid_video_slice[1] + 1])
@@ -255,6 +260,8 @@ def main():
     # joblib.dump(CAM_ALL, '/data2/wxs/DATASETS/AMASS_ByBradley/cam_params.pkl', compress=0)
     # joblib.dump(POSE3D_IMAGE_ALL, '/data2/wxs/DATASETS/AMASS_ByBradley/joint_3d_image.pkl', compress=3)
     # joblib.dump(FACTOR_2_5D, '/data2/wxs/DATASETS/AMASS_ByBradley/factor_2_5d.pkl', compress=0)
+
+    joblib.dump(VIDEO_MAP_DICT, '/data2/wxs/DATASETS/AMASS_ByBradley/video_map.pkl', compress=0)
 
 if __name__ == "__main__":
     main()
