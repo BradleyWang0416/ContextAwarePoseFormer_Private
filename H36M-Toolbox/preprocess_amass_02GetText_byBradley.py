@@ -40,7 +40,7 @@ def main():
 
     max_len = 2916
 
-    VIDEO_TEXT_PAIR_INFO = {'train': [], 'test': []}
+    VIDEO_TEXT_PAIR_INFO = {'train': {}, 'test': {}}
 
     video_id = 0
     for file_path in sorted(files):
@@ -100,14 +100,11 @@ def main():
 
             frame_indices_mb_subseq = frame_indices_mb[start:end]
 
-            VIDEO_TEXT_PAIR_INFO[data_split].append(
-                {
-                    'video_id': video_id,
-                    'file_path': file_path,
-                    'frame_indices_wrt_amass_npz': frame_indices_mb_subseq,
-                    'humanml3d': text_info,   # list of (text_file, valid_frame_indices_hm)
-                }
-            )
+            VIDEO_TEXT_PAIR_INFO[data_split][video_id] = {
+                'file_path': file_path,
+                'frame_indices_wrt_amass_npz': frame_indices_mb_subseq,
+                'humanml3d': text_info,   # list of (text_file, valid_frame_indices_hm)
+            }
 
             video_id += 1
 
