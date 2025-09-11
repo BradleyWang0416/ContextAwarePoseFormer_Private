@@ -216,6 +216,7 @@ def main():
             humanml3d_key = fname.split(raw_dir)[1].replace('.npz', '.npy')     # 'ACCAD/Female1General_c3d/A1 - Stand_poses.npz'
             row_indices = find_all_occurrences(humanml3d_key, humanml3d_info['source_path'])
 
+            video_caption_list = []
             for row_id in row_indices:  # row_indices could be empty
                 st_frame = humanml3d_info['start_frame'][row_id]
                 ed_frame = humanml3d_info['end_frame'][row_id]
@@ -225,7 +226,6 @@ def main():
 
                 with cs.open(caption_path) as f:      # 'datasets/humanml3d/texts/000002.txt'
                     lines = f.readlines()
-                video_caption_list = []
                 for line in lines:      # 循环txt文件每一行
                     line_split = line.strip().split('#')    # ['a man full-body sideways jumps to his left.', 'a/DET man/NOUN fullbody/NOUN sideways/ADV jump/VERB to/ADP his/DET left/NOUN', '0.0', '0.0']
                     caption = line_split[0]                 # 'a man full-body sideways jumps to his left.'
@@ -259,7 +259,7 @@ def main():
         time_length = len(frame_indices_mb)
         num_slice = time_length // max_len
 
-        VIDEO_SOURCE = VIDEO_ID + '|' + fname.replace(raw_dir, '')
+        VIDEO_SOURCE = str(VIDEO_ID) + '|' + fname.replace(raw_dir, '')
 
         for sid in range(num_slice+1):  # 一个循环对应一个 slice (即一个 video)
 
@@ -280,13 +280,16 @@ def main():
             joint_3d_world = np.einsum('jv,tvc->tjc', J_reg, mesh)    # (T,17,3)
 
 
+
+
             ######################## Find out if each slice has matching humanml3d caption or not #######################################################################################
-            frame_indices_mb_slice = frame_indices_mb[start:end]
-            slice_matching_captions = []
-            for caption, validCaption_frame_indices in video_caption_list:
-                if np.abs(validCaption_frame_indices.min() - frame_indices_mb_slice.min()) <= sample_stride_hm and \
-                    np.abs(validCaption_frame_indices.max() - frame_indices_mb_slice.max()) <= sample_stride_hm:
-                    slice_matching_captions.append(caption)
+            if get_caption:
+                frame_indices_mb_slice = frame_indices_mb[start:end]
+                slice_matching_captions = []
+                for caption, validCaption_frame_indices in video_caption_list:
+                    if np.abs(validCaption_frame_indices.min() - frame_indices_mb_slice.min()) <= sample_stride_hm and \
+                        np.abs(validCaption_frame_indices.max() - frame_indices_mb_slice.max()) <= sample_stride_hm:
+                        slice_matching_captions.append(caption)
 
 
 
@@ -324,13 +327,16 @@ def main():
                     clip_indices = slice(valid_video_clip[0], valid_video_clip[1] + 1)
                     CLIP_ID += 1
 
+
+
                     ######################## Find out if each slice has matching humanml3d caption or not #######################################################################################
-                    frame_indices_mb_clip = frame_indices_mb_slice[clip_indices]
-                    clip_matching_captions = []
-                    for caption, validCaption_frame_indices in video_caption_list:
-                        if np.abs(validCaption_frame_indices.min() - frame_indices_mb_clip.min()) <= sample_stride_hm and \
-                            np.abs(validCaption_frame_indices.max() - frame_indices_mb_clip.max()) <= sample_stride_hm:
-                            clip_matching_captions.append(caption)
+                    if get_caption:
+                        frame_indices_mb_clip = frame_indices_mb_slice[clip_indices]
+                        clip_matching_captions = []
+                        for caption, validCaption_frame_indices in video_caption_list:
+                            if np.abs(validCaption_frame_indices.min() - frame_indices_mb_clip.min()) <= sample_stride_hm and \
+                                np.abs(validCaption_frame_indices.max() - frame_indices_mb_clip.max()) <= sample_stride_hm:
+                                clip_matching_captions.append(caption)
 
 
 
