@@ -2,12 +2,14 @@ import torch
 from torch import nn
 from torch.nn.init import trunc_normal_
 from torch.nn import TransformerDecoderLayer
+import torch.nn.functional as F
+from einops import rearrange
 
 from mvn.models import pose_hrnet
 from mvn.models.networks import network
 from mvn.models.cpn.test_config import cfg
 from mvn.models.pose_dformer import PoseTransformer
-
+from mvn.utils.viz_skel_seq import viz_skel_seq_anim
 
 class CA_PF(nn.Module):
     def __init__(self, config, device='cuda:0'):
@@ -73,15 +75,16 @@ class CA_PF_VIDEO(CA_PF):
             feats_and_inputs = current_feats_and_inputs
             return feats_and_inputs
 
-        raise NotImplementedError
         # Step 1: condition the visual features of the current frame on previous memories
-        device = current_vision_feats[-1].device
+        device = current_feats_and_inputs['keypoints_2d_cpn'].device
         if is_init_cond_frame:
             if self.directly_add_no_mem_embed:
+                raise NotImplementedError
                 pix_feat_with_mem = current_vision_feats[-1] + self.no_mem_embed
                 return pix_feat_with_mem
             else:
-                NotImplementedError
+                feats_and_inputs = current_feats_and_inputs
+                return feats_and_inputs
         else:
             to_cat_memory = []
             assert len(output_dict["cond_frame_outputs"]) > 0
@@ -113,7 +116,7 @@ class CA_PF_VIDEO(CA_PF):
                 to_cat_memory.append(feats)
 
         # Step 2: Concatenate the memories and forward through the transformer encoder
-        memory = torch.stack(to_cat_memory, dim=-3)     # [B, 1024, T (a.k.a. num_maskmem), 64, 48]
+        memory = torch.concatenate(to_cat_memory, dim=2)     # [B, T (a.k.a. num_maskmem), 71, 3]
         memory = memory.flatten(2).permute(0, 2, 1)     # [B, T*64*48, 1024]
 
         x = current_vision_feats[-1].flatten(2).permute(0, 2, 1)  # [B, 1024, 64, 48] -> [B, 1024, 64*48] -> [B, 64*48, 1024]
@@ -144,7 +147,35 @@ class CA_PF_VIDEO(CA_PF):
         # }
         
         #TODO
-        ca_pf_outputs = self.volume_net(feats_and_inputs['keypoints_2d_cpn'], feats_and_inputs['keypoints_2d_cpn_crop'], feats_and_inputs['vision_feats']) # [B,1,17,3]
+        # ca_pf_outputs = self.volume_net(feats_and_inputs['keypoints_2d_cpn'], feats_and_inputs['keypoints_2d_cpn_crop'], feats_and_inputs['vision_feats']) # [B,1,17,3]
+        keypoints_2d, ref, features_list = feats_and_inputs['keypoints_2d_cpn'], feats_and_inputs['keypoints_2d_cpn_crop'], feats_and_inputs['vision_feats']
+        b, p, c = keypoints_2d.shape
+        ### now x is [batch_size, 2 channels, receptive frames, joint_num], following image data
+        x = self.volume_net.coord_embed(keypoints_2d)  # x: [B,17,128]
+        features_ref_list = [
+            F.grid_sample(features, ref.unsqueeze(-2), align_corners=True).squeeze(-1).permute(0, 2, 1).contiguous() \
+            for features in features_list]
+        # Example: features=features_list[0]: [B,32,64,48] ==> grid_sample(ref.unsqueeze(-2):[B,17,1,2]) ==> [B,32,17,1] ==> [B,32,17] => [B,17,32]
+        # [torch.Size([B, 17, 32]), torch.Size([B, 17, 64]), torch.Size([B, 17, 128]), torch.Size([B, 17, 256])]
+        features_ref_list = [embed(features_ref_list[idx]) for idx, embed in enumerate(self.volume_net.feat_embed)]
+        # [torch.Size([B, 17, 128]), torch.Size([B, 17, 128]), torch.Size([B, 17, 128]), torch.Size([B, 17, 128])]
+        x = torch.stack([x,*features_ref_list], dim=1) # [b, 5, 17, 128]
+
+        x += self.volume_net.Spatial_pos_embed
+        x = self.volume_net.pos_drop(x)
+        
+        for blk in self.volume_net.context_blocks: # len=4. element blk: <class 'mvn.models.pose_dformer.DeformableBlock'>
+            x = blk(x, ref, features_list)
+
+        x = rearrange(x, 'b l p c -> (b p) l c')    # [B,5,17,128] => [B*17,5,128]
+        for blk in self.volume_net.res_blocks: # 每个 blk 由 self-attention 和 MLP组成, 输入相当于 5 个 token, 每个 token 有 128 维特征, 然后做 self-attention, attention map 的形状为 5x5
+            x = blk(x)
+
+        x = rearrange(x, '(b p) l c -> b p (l c)', b=b)
+        for blk in self.volume_net.joint_blocks:
+            x = blk(x)
+
+        ca_pf_outputs = self.volume_net.head(x).view(b, 1, p, -1)
 
         return current_out, ca_pf_outputs, feats_and_inputs
 
@@ -161,9 +192,8 @@ class CA_PF_VIDEO(CA_PF):
     
     def _encode_memory_in_output(self, current_feats_and_inputs, feat_sizes, run_mem_encoder, keypoints_3d_pred, current_out):
         if run_mem_encoder and self.num_maskmem > 0:
-            raise NotImplementedError
             maskmem_features = self._encode_new_memory(
-                current_vision_feats=current_vision_feats,
+                current_feats_and_inputs=current_feats_and_inputs,
                 feat_sizes=feat_sizes,
                 keypoints_3d_pred=keypoints_3d_pred,
             )
@@ -171,17 +201,8 @@ class CA_PF_VIDEO(CA_PF):
         else:
             current_out["maskmem_features"] = None
     
-    def _encode_new_memory(self, current_vision_feats, feat_sizes, keypoints_3d_pred):
-        raise NotImplementedError
-        C, H, W = feat_sizes[-1]  # top-level (lowest-resolution) feature size
-        pix_feat = current_vision_feats[-1]  # [B,1024,64,48]
-
-        # 1. 上采样 heatmap 到特征图大小（[B, 17, 64, 48]）
-        resized_heatmap = F.interpolate(keypoints_3d_pred, size=(H, W), mode='bilinear', align_corners=False)  # [B, 17, 64, 48]
-        # 2. 聚合所有关键点通道 → [B, 1, 64, 48]：作为注意力掩码
-        mask_for_mem = resized_heatmap.mean(dim=1, keepdim=True)  # [B, 1, 64, 48]
-
-        maskmem_out = {"vision_features": pix_feat * mask_for_mem}
+    def _encode_new_memory(self, current_feats_and_inputs, feat_sizes, keypoints_3d_pred):
+        maskmem_out = {"vision_features": keypoints_3d_pred}
         maskmem_features = maskmem_out["vision_features"]
         return maskmem_features
     
@@ -217,7 +238,7 @@ class CA_PF_VIDEO(CA_PF):
 
             add_output_as_cond_frame = is_init_cond_frame
             if add_output_as_cond_frame:
-                output_dict["cond_frame_outputs"][frame_idx] = current_out      # current_out: Dict
+                output_dict["cond_frame_outputs"][frame_idx] = current_out      # current_out: Dict. dict_keys(['keypoints_3d_pred', 'maskmem_features'])
             else:
                 output_dict["non_cond_frame_outputs"][frame_idx] = current_out
 
@@ -264,7 +285,7 @@ class CA_PF_VIDEO(CA_PF):
 
         return video_keypoints_3d_pred
     
-    def forward(self, videos, video_keypoints_2d_cpn, video_keypoints_2d_cpn_crop): # [B,T,256,192,3], [B,T,17,2], [B,T,17,2]
+    def forward_original(self, videos, video_keypoints_2d_cpn, video_keypoints_2d_cpn_crop): # [B,T,256,192,3], [B,T,17,2], [B,T,17,2]
         device = video_keypoints_2d_cpn.device
         B, T, J, _ = video_keypoints_2d_cpn.shape
         video_keypoints_2d_cpn_crop[..., :2] /= torch.tensor([192//2, 256//2], device=device)
@@ -275,6 +296,9 @@ class CA_PF_VIDEO(CA_PF):
         video_keypoints_3d_pred = self.volume_net(video_keypoints_2d_cpn, video_keypoints_2d_cpn_crop, backbone_out['vision_features'])
 
         return video_keypoints_3d_pred
+    
+    def forward(self, *args, **kwargs):
+        return self.forward_sam2_style(*args, **kwargs)
 
 
 def select_closest_cond_frames(frame_idx, cond_frame_outputs, max_cond_frame_num):

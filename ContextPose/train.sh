@@ -2,8 +2,8 @@
 mode='debug'
 # mode='train'
 
-data_mode="video"
-# data_mode="image"
+# data_mode="video"
+data_mode="image"
 if [ "$data_mode" = "video" ]; then
     config="experiments/human36m/human36m_multiframe_byBradley.yaml"
 else

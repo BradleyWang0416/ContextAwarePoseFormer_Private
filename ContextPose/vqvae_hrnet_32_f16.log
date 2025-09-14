@@ -1,0 +1,14 @@
+model backbone weights are fixed
+Experiment name: ConPose@14.09.2025-12:38:23
+args: Namespace(config='experiments/human36m/vqvae_byBradley.yaml', eval=False, eval_dataset='val', local_rank=None, seed=42, sync_bn=False, logdir='./logs/vqvae_byBradley/hrnet_32_f16_250914_17pm', azureroot='', frame=16, backbone='hrnet_32')
+Number of GPUs: 1
+_IncompatibleKeys(missing_keys=[], unexpected_keys=['final_layer.weight', 'final_layer.bias'])
+Loaded hrnet_32 from data/pretrained/coco/pose_hrnet_w32_256x192.pth
+Loading data...
+Trainable parameter count: 2531183
+Untrainable parameter count: 28535552
+epoch 1 | iter 0/1519 | loss: 14.0834
+epoch 1 | iter 100/1519 | loss: 0.2077
+epoch 1 | iter 200/1519 | loss: 0.1338
+epoch 1 | iter 300/1519 | loss: 0.1433
+epoch 1 | iter 400/1519 | loss: 0.1165

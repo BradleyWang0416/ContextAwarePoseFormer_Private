@@ -1,6 +1,6 @@
 # By Bradley
-num_maskmem: 0
-directly_add_no_mem_embed: true
+num_maskmem: 4
+directly_add_no_mem_embed: false
 max_cond_frames_in_attn: -1
 num_feature_levels: 4    # 4 for hrnet
 memory_temporal_stride_for_eval: 1
