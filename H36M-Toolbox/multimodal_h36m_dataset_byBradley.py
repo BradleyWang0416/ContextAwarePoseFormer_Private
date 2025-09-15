@@ -274,6 +274,9 @@ class Multimodal_Mocap_Dataset(torch.utils.data.Dataset):
                 return_dict[k] = torch.stack(v, dim=0)
         except:
             pass
+
+        if len(return_dict) == 1:
+            return_dict = return_dict[ list(return_dict.keys())[0] ]
         return return_dict
 
 
