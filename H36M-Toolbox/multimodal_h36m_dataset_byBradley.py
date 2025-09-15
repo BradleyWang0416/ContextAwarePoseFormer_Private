@@ -62,7 +62,7 @@ class Multimodal_Mocap_Dataset(torch.utils.data.Dataset):
         for dt_file, img_src_file, bbox_file, extra_modality_list in zip(load_data_file.split(','), load_image_source_file.split(','), load_bbox_file.split(','), return_extra):
             ######################################################### load image data; find indices with valid images; do not apply sample_stride #########################################################
             use_image = 'image' in extra_modality_list
-            if use_image:              
+            if use_image:
                 img_list = joblib.load(img_src_file)[designated_split]
                 if filter_invalid_images:
                     valid_img_indices = []
@@ -89,6 +89,12 @@ class Multimodal_Mocap_Dataset(torch.utils.data.Dataset):
                     img_list = np.array(img_list)
             else:
                 valid_img_indices = slice(None)   # all valid
+
+            ######################################################### bbox data part #########################################################
+            if use_image:
+                bboxes_xyxy = joblib.load(bbox_file)[designated_split]
+                bboxes_xyxy = bboxes_xyxy[valid_img_indices]
+                bboxes_xyxy = bboxes_xyxy[::sample_stride]
 
             ######################################################### load joint data; resample according to indices with valid images #########################################################
             datareader_config_unsplit = {'dt_file': dt_file,}
@@ -132,16 +138,11 @@ class Multimodal_Mocap_Dataset(torch.utils.data.Dataset):
             else:
                 factor_2_5d = np.zeros((joint3d_image.shape[0],), dtype=np.float32)
 
-            ######################################################### bbox data part #########################################################
-            bboxes_xyxy = joblib.load(bbox_file)[designated_split]
-            bboxes_xyxy = bboxes_xyxy[valid_img_indices]
-            bboxes_xyxy = bboxes_xyxy[::sample_stride]
 
             ######################################################### do a sanity check; store data #########################################################
             assert joint3d_image.shape[0] == len(data_sources) == len(bboxes_xyxy) == len(img_ori_wh)
             data_dict[dt_file] = {'joint3d_image': joint3d_image,   # (N,17,3)
                                   'sources': data_sources,   # (N,)
-                                  'bboxes_xyxy': bboxes_xyxy,
                                   'ori_img_wh': img_ori_wh,   # (N,2)
                                   '2.5d_factor': factor_2_5d,   # (N,)
                                   'joint3d_image_scale': joint3d_image_scale,   # (N,3)
@@ -150,6 +151,7 @@ class Multimodal_Mocap_Dataset(torch.utils.data.Dataset):
             if use_image:
                 assert joint3d_image.shape[0] == len(img_list)
                 data_dict[dt_file]['image_sources'] = img_list
+                data_dict[dt_file]['bboxes_xyxy'] = bboxes_xyxy
 
             ######################################################### affine poses to align with images ########################################################
             if use_image and processed_image_shape is not None:
