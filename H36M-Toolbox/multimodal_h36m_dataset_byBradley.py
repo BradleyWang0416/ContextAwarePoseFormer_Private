@@ -140,7 +140,7 @@ class Multimodal_Mocap_Dataset(torch.utils.data.Dataset):
 
 
             ######################################################### do a sanity check; store data #########################################################
-            assert joint3d_image.shape[0] == len(data_sources) == len(bboxes_xyxy) == len(img_ori_wh)
+            assert joint3d_image.shape[0] == len(data_sources) == len(img_ori_wh)
             data_dict[dt_file] = {'joint3d_image': joint3d_image,   # (N,17,3)
                                   'sources': data_sources,   # (N,)
                                   'ori_img_wh': img_ori_wh,   # (N,2)
@@ -149,7 +149,7 @@ class Multimodal_Mocap_Dataset(torch.utils.data.Dataset):
                                   'joint3d_image_transl': joint3d_image_transl,   # (N,3)
                                   }            
             if use_image:
-                assert joint3d_image.shape[0] == len(img_list)
+                assert joint3d_image.shape[0] == len(img_list) == len(bboxes_xyxy)
                 data_dict[dt_file]['image_sources'] = img_list
                 data_dict[dt_file]['bboxes_xyxy'] = bboxes_xyxy
 
