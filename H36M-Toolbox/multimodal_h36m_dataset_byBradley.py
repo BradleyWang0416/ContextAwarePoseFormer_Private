@@ -4,6 +4,7 @@ import numpy as np
 import cv2
 import torch
 import shutil
+from collections import defaultdict
 
 import sys
 sys.path.append('/home/wxs/Skeleton-in-Context-tpami/')
@@ -30,6 +31,8 @@ class Multimodal_Mocap_Dataset(torch.utils.data.Dataset):
                  filter_invalid_images=True,
                  processed_image_shape=None,    # e.g., (192,256)
                  backbone='hrnet_32',
+                 # dataloader config
+                 get_item_list=[],
                  ):
         # e.g.,
         # lode_data_file='<h36m_path>,<amass_path>'
@@ -40,6 +43,9 @@ class Multimodal_Mocap_Dataset(torch.utils.data.Dataset):
         assert len(load_data_file.split(',')) == len(load_image_source_file.split(',')) == len(return_extra) == len(load_bbox_file.split(','))
 
         self.num_frames = num_frames
+        self.get_item_list = get_item_list
+        # e.g., ['joint3d_image', 'joint3d_image_normed', 'factor_2_5d', 'joint3d_image_scale', 'joint3d_image_transl']
+        assert len(self.get_item_list) > 0
 
         if backbone in ['hrnet_32', 'hrnet_48']:
             self.img_mean = np.array([0.485, 0.456, 0.406])
@@ -218,10 +224,6 @@ class Multimodal_Mocap_Dataset(torch.utils.data.Dataset):
         joint3d_image_transl = self.data_dict[dt_file]['joint3d_image_transl'][slice_id]
         joint3d_image_normed = joint3d_image / joint3d_image_scale[..., None, :] - joint3d_image_transl[..., None, :]
 
-
-        return_tuple = (torch.from_numpy(joint3d_image).float(), torch.from_numpy(joint3d_image_normed).float(), torch.from_numpy(factor_2_5d).float(), torch.from_numpy(joint3d_image_scale).float(), torch.from_numpy(joint3d_image_transl).float())
-        
-
         if use_image:
             ############################################# load image; do normalize #############################################
             image_sources = self.data_dict[dt_file]['image_sources'][slice_id]  # (num_frames,)
@@ -244,33 +246,41 @@ class Multimodal_Mocap_Dataset(torch.utils.data.Dataset):
             joint3d_image_affined_transl = self.data_dict[dt_file]['joint3d_image_affined_transl'][slice_id]
             joint3d_image_affined_normed = joint3d_image_affined / joint3d_image_affined_scale[..., None, :] - joint3d_image_affined_transl[..., None, :]
 
+        return_dict = {}
+        for get_item in self.get_item_list:
+            item = locals()[get_item]
+            try:
+                item = torch.from_numpy(item).float()
+            except:
+                pass
+            return_dict[get_item] = item
+        # e.g., return_dict = (joint3d_image, joint3d_image_normed, factor_2_5d, joint3d_image_scale, joint3d_image_transl)
+        # e.g., return_dict = (joint3d_image, joint3d_image_normed, factor_2_5d, joint3d_image_scale, joint3d_image_transl, 
+        #                       video_rgb, joint3d_image_affined, joint3d_image_affined_normed, joint3d_image_affined_scale, joint3d_image_affined_transl)
 
-            return_tuple = return_tuple + (torch.from_numpy(video_rgb).float(), torch.from_numpy(joint3d_image_affined).float(), torch.from_numpy(joint3d_image_affined_normed).float(), torch.from_numpy(joint3d_image_affined_scale).float(), torch.from_numpy(joint3d_image_affined_transl).float())  # (num_frames, H, W, 3), RGB order
-
-
-        return return_tuple
+        return return_dict
 
 
     @staticmethod
     def collate_fn(batch):
-        return_tuple = ()        
-        while len(batch[0]) > 0:
-            object_list = []
-            for batch_id, item in enumerate(batch):
-                object_list.append(item[0])
-                batch[batch_id] = batch[batch_id][1:]               
-            try:
-                object_list = torch.stack(object_list)
-            except:
-                pass
-            return_tuple = return_tuple + (object_list,)
-        return return_tuple
+        return_dict = defaultdict(list)
+        for b in batch:
+            for k, v in b.items():
+                return_dict[k].append(v)
+        try:
+            for k, v in return_dict.items():
+                return_dict[k] = torch.stack(v, dim=0)
+        except:
+            pass
+        return return_dict
 
 
 
 if __name__ == '__main__':
-    dataset = Multimodal_Mocap_Dataset(processed_image_shape=(192,256))
+    dataset = Multimodal_Mocap_Dataset(processed_image_shape=(192,256),
+                                       get_item_list=['joint3d_image', 'joint3d_image_normed', 'factor_2_5d', 'joint3d_image_scale', 'joint3d_image_transl', 
+                                                      'video_rgb', 'joint3d_image_affined', 'joint3d_image_affined_normed', 'joint3d_image_affined_scale', 'joint3d_image_affined_transl']
+                                       )
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=4, shuffle=True, num_workers=0, collate_fn=Multimodal_Mocap_Dataset.collate_fn)
-    for data in dataloader:
-        print([d.shape if isinstance(d, torch.Tensor) else len(d) for d in data])
+    for batch_dict in dataloader:
         pass
