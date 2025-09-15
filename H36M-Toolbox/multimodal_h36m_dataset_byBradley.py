@@ -219,7 +219,7 @@ class Multimodal_Mocap_Dataset(torch.utils.data.Dataset):
         joint3d_image_normed = joint3d_image / joint3d_image_scale[..., None, :] - joint3d_image_transl[..., None, :]
 
 
-        return_tuple = (torch.from_numpy(joint3d_image).float(), torch.from_numpy(factor_2_5d).float(), torch.from_numpy(ori_img_wh).float(), torch.from_numpy(joint3d_image_normed).float())
+        return_tuple = (torch.from_numpy(joint3d_image).float(), torch.from_numpy(joint3d_image_normed).float(), torch.from_numpy(factor_2_5d).float(), torch.from_numpy(joint3d_image_scale).float(), torch.from_numpy(joint3d_image_transl).float())
         
 
         if use_image:
@@ -245,7 +245,7 @@ class Multimodal_Mocap_Dataset(torch.utils.data.Dataset):
             joint3d_image_affined_normed = joint3d_image_affined / joint3d_image_affined_scale[..., None, :] - joint3d_image_affined_transl[..., None, :]
 
 
-            return_tuple = return_tuple + (torch.from_numpy(video_rgb).float(), torch.from_numpy(joint3d_image_affined).float(), torch.from_numpy(joint3d_image_affined_normed).float(), torch.from_numpy(processed_img_wh).float())  # (num_frames, H, W, 3), RGB order
+            return_tuple = return_tuple + (torch.from_numpy(video_rgb).float(), torch.from_numpy(joint3d_image_affined).float(), torch.from_numpy(joint3d_image_affined_normed).float(), torch.from_numpy(joint3d_image_affined_scale).float(), torch.from_numpy(joint3d_image_affined_transl).float())  # (num_frames, H, W, 3), RGB order
 
 
         return return_tuple
