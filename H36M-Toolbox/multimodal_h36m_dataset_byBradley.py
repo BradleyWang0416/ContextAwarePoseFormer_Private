@@ -82,7 +82,7 @@ class Multimodal_Mocap_Dataset(torch.utils.data.Dataset):
 
                 if processed_image_shape is not None:
                     img_list = img_list.tolist()
-                    assert processed_image_shape[0] == 192 and processed_image_shape[1] in [256], f'only supports [processed_image_shape=(192,256)] now. other settings not implemented yet.'
+                    assert processed_image_shape[0] == 192 and processed_image_shape[1] == 256, f'only supports [processed_image_shape=(192,256)] now. other settings not implemented yet.'
                     for frame_id, img_path in enumerate(img_list):
                         img_list[frame_id] = img_path.replace('images_fps50', f'images_fps50_cropped_{processed_image_shape[0]}x{processed_image_shape[1]}')
                         assert os.path.exists(img_list[frame_id]), f'img_list[frame_id]={img_list[frame_id]} not exists.'
