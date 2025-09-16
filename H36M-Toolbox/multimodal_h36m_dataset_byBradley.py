@@ -47,7 +47,7 @@ class Multimodal_Mocap_Dataset(torch.utils.data.Dataset):
         self.get_item_list = get_item_list
         # e.g., [joint3d_image, joint3d_image_normed, factor_2_5d, joint3d_image_scale, joint3d_image_transl,
         #        video_rgb, joint3d_image_affined, joint3d_image_affined_normed, joint3d_image_affined_scale, joint3d_image_affined_transl,
-        #        slice_id]
+        #        slice_id, image_sources]
         assert len(self.get_item_list) > 0
         self.batch_return_type = batch_return_type
         assert self.batch_return_type in ['dict', 'tuple']
@@ -292,7 +292,8 @@ class Multimodal_Mocap_Dataset(torch.utils.data.Dataset):
 if __name__ == '__main__':
     dataset = Multimodal_Mocap_Dataset(processed_image_shape=(192,256),
                                        get_item_list=['joint3d_image', 'joint3d_image_normed', 'factor_2_5d', 'joint3d_image_scale', 'joint3d_image_transl', 
-                                                      'video_rgb', 'joint3d_image_affined', 'joint3d_image_affined_normed', 'joint3d_image_affined_scale', 'joint3d_image_affined_transl']
+                                                      'video_rgb', 'joint3d_image_affined', 'joint3d_image_affined_normed', 'joint3d_image_affined_scale', 'joint3d_image_affined_transl',
+                                                      'slice_id', 'image_sources']
                                        )
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=4, shuffle=True, num_workers=0, collate_fn=Multimodal_Mocap_Dataset.collate_fn)
     for batch_dict in dataloader:

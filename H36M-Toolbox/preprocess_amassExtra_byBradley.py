@@ -293,7 +293,7 @@ def main():
 
 
 
-
+            ######################## get virtual joint_3d_cam and joint_3d_image; find clips with valid images; find matching caption #######################################################################################
             if get_virtual_joint_3d_image:
                 camera_key = random.choice(list(cameras.keys()))
                 camera = cameras[camera_key]
@@ -329,7 +329,7 @@ def main():
 
 
 
-                    ######################## Find out if each slice has matching humanml3d caption or not #######################################################################################
+                    ######################## Find out if each clip has matching humanml3d caption or not #######################################################################################
                     if get_caption:
                         frame_indices_mb_clip = frame_indices_mb_slice[clip_indices]
                         clip_matching_captions = []
