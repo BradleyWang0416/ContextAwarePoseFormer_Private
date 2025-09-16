@@ -45,7 +45,9 @@ class Multimodal_Mocap_Dataset(torch.utils.data.Dataset):
 
         self.num_frames = num_frames
         self.get_item_list = get_item_list
-        # e.g., ['joint3d_image', 'joint3d_image_normed', 'factor_2_5d', 'joint3d_image_scale', 'joint3d_image_transl']
+        # e.g., [joint3d_image, joint3d_image_normed, factor_2_5d, joint3d_image_scale, joint3d_image_transl,
+        #        video_rgb, joint3d_image_affined, joint3d_image_affined_normed, joint3d_image_affined_scale, joint3d_image_affined_transl,
+        #        slice_id]
         assert len(self.get_item_list) > 0
         self.batch_return_type = batch_return_type
         assert self.batch_return_type in ['dict', 'tuple']
@@ -250,6 +252,8 @@ class Multimodal_Mocap_Dataset(torch.utils.data.Dataset):
             joint3d_image_affined_scale = self.data_dict[dt_file]['joint3d_image_affined_scale'][slice_id]  # (num_frames, 3)
             joint3d_image_affined_transl = self.data_dict[dt_file]['joint3d_image_affined_transl'][slice_id]
             joint3d_image_affined_normed = joint3d_image_affined / joint3d_image_affined_scale[..., None, :] - joint3d_image_affined_transl[..., None, :]
+
+        slice_id = np.array(slice_id).astype(np.int64)
 
         return_dict = {}
         for get_item in self.get_item_list:
