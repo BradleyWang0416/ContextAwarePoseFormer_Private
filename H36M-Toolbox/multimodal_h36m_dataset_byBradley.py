@@ -33,6 +33,7 @@ class Multimodal_Mocap_Dataset(torch.utils.data.Dataset):
                  backbone='hrnet_32',
                  # dataloader config
                  get_item_list=[],
+                 batch_return_type='dict',
                  ):
         # e.g.,
         # lode_data_file='<h36m_path>,<amass_path>'
@@ -46,6 +47,8 @@ class Multimodal_Mocap_Dataset(torch.utils.data.Dataset):
         self.get_item_list = get_item_list
         # e.g., ['joint3d_image', 'joint3d_image_normed', 'factor_2_5d', 'joint3d_image_scale', 'joint3d_image_transl']
         assert len(self.get_item_list) > 0
+        self.batch_return_type = batch_return_type
+        assert self.batch_return_type in ['dict', 'tuple']
 
         if backbone in ['hrnet_32', 'hrnet_48']:
             self.img_mean = np.array([0.485, 0.456, 0.406])
@@ -263,8 +266,7 @@ class Multimodal_Mocap_Dataset(torch.utils.data.Dataset):
         return return_dict
 
 
-    @staticmethod
-    def collate_fn(batch):
+    def collate_fn(self, batch):
         return_dict = defaultdict(list)
         for b in batch:
             for k, v in b.items():
@@ -276,7 +278,9 @@ class Multimodal_Mocap_Dataset(torch.utils.data.Dataset):
             pass
 
         if len(return_dict) == 1:
-            return_dict = return_dict[ list(return_dict.keys())[0] ]
+            return return_dict[ list(return_dict.keys())[0] ]
+        if self.batch_return_type == 'tuple':
+            return_dict = tuple([v for k, v in return_dict.items()])
         return return_dict
 
 
