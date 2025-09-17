@@ -75,8 +75,8 @@ class Multimodal_Mocap_Dataset(torch.utils.data.Dataset):
                         if img_path is None:
                             continue
                         valid_img_indices.append(frame_id)
-                        if 'debugpy' in sys.modules and designated_split == 'train' and len(valid_img_indices) >= 32:   # for debug purpose
-                            break
+                        # if 'debugpy' in sys.modules and designated_split == 'train' and len(valid_img_indices) >= 32:   # for debug purpose
+                        #     break
                 else:
                     valid_img_indices = list(range(len(img_list)))
 
