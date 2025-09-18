@@ -137,16 +137,19 @@ class Multimodal_Mocap_Dataset(torch.utils.data.Dataset):
             ######################################################### source data part #########################################################
             data_sources = datareader.read_source(designated_split=designated_split)    # sampled_stride applied within read_source
 
-            ######################################################### 2.5d factory data part #########################################################
+            ######################################################### 2.5d factor and image data part #########################################################
             if designated_split == 'test':
                 factor_2_5d = datareader.read_2_5d_factor(designated_split=designated_split)    # sampled_stride applied within read_source
+                joint_2_5d_image = datareader.read_2_5d_image(designated_split=designated_split)    # sampled_stride applied within read_source
             else:
                 factor_2_5d = np.zeros((joint3d_image.shape[0],), dtype=np.float32)
+                joint_2_5d_image = np.zeros_like(joint3d_image)
 
 
             ######################################################### do a sanity check; store data #########################################################
-            assert joint3d_image.shape[0] == len(data_sources) == len(img_ori_wh)
+            assert joint3d_image.shape[0] == len(data_sources) == len(img_ori_wh) == joint_2_5d_image.shape[0] == factor_2_5d.shape[0]
             data_dict[dt_file] = {'joint3d_image': joint3d_image,   # (N,17,3)
+                                  'joint_2.5d_image': joint_2_5d_image,   # (N,17,3)
                                   'sources': data_sources,   # (N,)
                                   'ori_img_wh': img_ori_wh,   # (N,2)
                                   '2.5d_factor': factor_2_5d,   # (N,)
@@ -222,6 +225,7 @@ class Multimodal_Mocap_Dataset(torch.utils.data.Dataset):
         dt_file, slice_id, use_image, caption = self.data_list[idx]
 
         joint3d_image = self.data_dict[dt_file]['joint3d_image'][slice_id]  # (num_frames, 17, 3)
+        joint_2_5d_image = self.data_dict[dt_file]['joint_2.5d_image'][slice_id]  # (num_frames, 17, 3)
         factor_2_5d = self.data_dict[dt_file]['2.5d_factor'][slice_id]  # (num_frames,) only for test
         ori_img_wh = self.data_dict[dt_file]['ori_img_wh'][slice_id]  # (num_frames, 2). element: (res_w, res_h)
         # assert (img_ori_hw[0:1, :] == img_ori_hw[1:, :]).all()
