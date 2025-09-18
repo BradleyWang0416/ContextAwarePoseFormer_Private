@@ -1,5 +1,5 @@
 model backbone weights are fixed
-Experiment name: ConPose@14.09.2025-12:38:23
+Experiment name: ConPose@14.09.2025-13:23:28
 args: Namespace(config='experiments/human36m/vqvae_byBradley.yaml', eval=False, eval_dataset='val', local_rank=None, seed=42, sync_bn=False, logdir='./logs/vqvae_byBradley/hrnet_32_f16_250914_17pm', azureroot='', frame=16, backbone='hrnet_32')
 Number of GPUs: 1
 _IncompatibleKeys(missing_keys=[], unexpected_keys=['final_layer.weight', 'final_layer.bias'])
@@ -7,8 +7,270 @@ Loaded hrnet_32 from data/pretrained/coco/pose_hrnet_w32_256x192.pth
 Loading data...
 Trainable parameter count: 2531183
 Untrainable parameter count: 28535552
-epoch 1 | iter 0/1519 | loss: 14.0834
-epoch 1 | iter 100/1519 | loss: 0.2077
-epoch 1 | iter 200/1519 | loss: 0.1338
-epoch 1 | iter 300/1519 | loss: 0.1433
-epoch 1 | iter 400/1519 | loss: 0.1165
+epoch 1 | iter 0/1519 | loss: 14.7000
+epoch 1 | iter 100/1519 | loss: 0.2008
+epoch 1 | iter 200/1519 | loss: 0.1837
+epoch 1 | iter 300/1519 | loss: 0.1493
+epoch 1 | iter 400/1519 | loss: 0.1459
+epoch 1 | iter 500/1519 | loss: 0.0840
+epoch 1 | iter 600/1519 | loss: 0.0671
+epoch 1 | iter 700/1519 | loss: 0.0618
+epoch 1 | iter 800/1519 | loss: 0.0676
+epoch 1 | iter 900/1519 | loss: 0.0648
+epoch 1 | iter 1000/1519 | loss: 0.0552
+epoch 1 | iter 1100/1519 | loss: 0.0550
+epoch 1 | iter 1200/1519 | loss: 0.0542
+epoch 1 | iter 1300/1519 | loss: 0.0513
+epoch 1 | iter 1400/1519 | loss: 0.0498
+epoch 1 | iter 1500/1519 | loss: 0.0536
+Evaluating...
+[Epoch 1] time: 64.37m | lr: 0.010000 | train-loss: 0.124 | mpjpe_millimeter: 37.2 | mpjpe_pixel: 8.6
+  --> New best model! Saving to ./logs/vqvae_byBradley/hrnet_32_f16_250914_17pm/ConPose@14.09.2025-13:23:28/checkpoints/best_epoch.bin
+epoch 2 | iter 0/1519 | loss: 0.0446
+epoch 2 | iter 100/1519 | loss: 0.0466
+epoch 2 | iter 200/1519 | loss: 0.0479
+epoch 2 | iter 300/1519 | loss: 0.0465
+epoch 2 | iter 400/1519 | loss: 0.0470
+epoch 2 | iter 500/1519 | loss: 0.0433
+epoch 2 | iter 600/1519 | loss: 0.0447
+epoch 2 | iter 700/1519 | loss: 0.0440
+epoch 2 | iter 800/1519 | loss: 0.0460
+epoch 2 | iter 900/1519 | loss: 0.0485
+epoch 2 | iter 1000/1519 | loss: 0.0475
+epoch 2 | iter 1100/1519 | loss: 0.0431
+epoch 2 | iter 1200/1519 | loss: 0.0431
+epoch 2 | iter 1300/1519 | loss: 0.0434
+epoch 2 | iter 1400/1519 | loss: 0.0438
+epoch 2 | iter 1500/1519 | loss: 0.0463
+Evaluating...
+[Epoch 2] time: 60.71m | lr: 0.010000 | train-loss: 0.045 | mpjpe_millimeter: 38.2 | mpjpe_pixel: 8.7
+epoch 3 | iter 0/1519 | loss: 0.0432
+epoch 3 | iter 100/1519 | loss: 0.0464
+epoch 3 | iter 200/1519 | loss: 0.0460
+epoch 3 | iter 300/1519 | loss: 0.0416
+epoch 3 | iter 400/1519 | loss: 0.0457
+epoch 3 | iter 500/1519 | loss: 0.0371
+epoch 3 | iter 600/1519 | loss: 0.0395
+epoch 3 | iter 700/1519 | loss: 0.0359
+epoch 3 | iter 800/1519 | loss: 0.0417
+epoch 3 | iter 900/1519 | loss: 0.0431
+epoch 3 | iter 1000/1519 | loss: 0.0393
+epoch 3 | iter 1100/1519 | loss: 0.0357
+epoch 3 | iter 1200/1519 | loss: 0.0355
+epoch 3 | iter 1300/1519 | loss: 0.0351
+epoch 3 | iter 1400/1519 | loss: 0.0362
+epoch 3 | iter 1500/1519 | loss: 0.0350
+Evaluating...
+[Epoch 3] time: 56.06m | lr: 0.010000 | train-loss: 0.039 | mpjpe_millimeter: 26.5 | mpjpe_pixel: 6.1
+  --> New best model! Saving to ./logs/vqvae_byBradley/hrnet_32_f16_250914_17pm/ConPose@14.09.2025-13:23:28/checkpoints/best_epoch.bin
+epoch 4 | iter 0/1519 | loss: 0.0358
+epoch 4 | iter 100/1519 | loss: 0.0404
+epoch 4 | iter 200/1519 | loss: 0.0380
+epoch 4 | iter 300/1519 | loss: 0.0335
+epoch 4 | iter 400/1519 | loss: 0.0316
+epoch 4 | iter 500/1519 | loss: 0.0327
+epoch 4 | iter 600/1519 | loss: 0.0381
+epoch 4 | iter 700/1519 | loss: 0.0294
+epoch 4 | iter 800/1519 | loss: 0.0378
+epoch 4 | iter 900/1519 | loss: 0.0429
+epoch 4 | iter 1000/1519 | loss: 0.0288
+epoch 4 | iter 1100/1519 | loss: 0.1047
+epoch 4 | iter 1200/1519 | loss: 0.0394
+epoch 4 | iter 1300/1519 | loss: 0.0353
+epoch 4 | iter 1400/1519 | loss: 0.0422
+epoch 4 | iter 1500/1519 | loss: 0.0344
+Evaluating...
+[Epoch 4] time: 57.15m | lr: 0.010000 | train-loss: 0.038 | mpjpe_millimeter: 24.1 | mpjpe_pixel: 5.5
+  --> New best model! Saving to ./logs/vqvae_byBradley/hrnet_32_f16_250914_17pm/ConPose@14.09.2025-13:23:28/checkpoints/best_epoch.bin
+epoch 5 | iter 0/1519 | loss: 0.0394
+epoch 5 | iter 100/1519 | loss: 0.0348
+epoch 5 | iter 200/1519 | loss: 0.0323
+epoch 5 | iter 300/1519 | loss: 0.0325
+epoch 5 | iter 400/1519 | loss: 0.0367
+epoch 5 | iter 500/1519 | loss: 0.0381
+epoch 5 | iter 600/1519 | loss: 0.0341
+epoch 5 | iter 700/1519 | loss: 0.0409
+epoch 5 | iter 800/1519 | loss: 0.0355
+epoch 5 | iter 900/1519 | loss: 0.0307
+epoch 5 | iter 1000/1519 | loss: 0.0481
+epoch 5 | iter 1100/1519 | loss: 0.0416
+epoch 5 | iter 1200/1519 | loss: 0.0345
+epoch 5 | iter 1300/1519 | loss: 0.0297
+epoch 5 | iter 1400/1519 | loss: 0.0339
+epoch 5 | iter 1500/1519 | loss: 0.0334
+Evaluating...
+[Epoch 5] time: 55.92m | lr: 0.010000 | train-loss: 0.036 | mpjpe_millimeter: 23.3 | mpjpe_pixel: 5.4
+  --> New best model! Saving to ./logs/vqvae_byBradley/hrnet_32_f16_250914_17pm/ConPose@14.09.2025-13:23:28/checkpoints/best_epoch.bin
+epoch 6 | iter 0/1519 | loss: 0.0338
+epoch 6 | iter 100/1519 | loss: 0.0337
+epoch 6 | iter 200/1519 | loss: 0.0319
+epoch 6 | iter 300/1519 | loss: 0.0296
+epoch 6 | iter 400/1519 | loss: 0.0775
+epoch 6 | iter 500/1519 | loss: 0.0285
+epoch 6 | iter 600/1519 | loss: 0.0319
+epoch 6 | iter 700/1519 | loss: 0.0311
+epoch 6 | iter 800/1519 | loss: 0.0439
+epoch 6 | iter 900/1519 | loss: 0.0253
+epoch 6 | iter 1000/1519 | loss: 0.0300
+epoch 6 | iter 1100/1519 | loss: 0.0450
+epoch 6 | iter 1200/1519 | loss: 0.0288
+epoch 6 | iter 1300/1519 | loss: 0.0353
+epoch 6 | iter 1400/1519 | loss: 0.0315
+epoch 6 | iter 1500/1519 | loss: 0.0279
+Evaluating...
+[Epoch 6] time: 58.61m | lr: 0.010000 | train-loss: 0.035 | mpjpe_millimeter: 18.6 | mpjpe_pixel: 4.3
+  --> New best model! Saving to ./logs/vqvae_byBradley/hrnet_32_f16_250914_17pm/ConPose@14.09.2025-13:23:28/checkpoints/best_epoch.bin
+epoch 7 | iter 0/1519 | loss: 0.0271
+epoch 7 | iter 100/1519 | loss: 0.0290
+epoch 7 | iter 200/1519 | loss: 0.0635
+epoch 7 | iter 300/1519 | loss: 0.0256
+epoch 7 | iter 400/1519 | loss: 0.0276
+epoch 7 | iter 500/1519 | loss: 0.0305
+epoch 7 | iter 600/1519 | loss: 0.0278
+epoch 7 | iter 700/1519 | loss: 0.0260
+epoch 7 | iter 800/1519 | loss: 0.0271
+epoch 7 | iter 900/1519 | loss: 0.0273
+epoch 7 | iter 1000/1519 | loss: 0.0352
+epoch 7 | iter 1100/1519 | loss: 0.0281
+epoch 7 | iter 1200/1519 | loss: 0.0259
+epoch 7 | iter 1300/1519 | loss: 0.0684
+epoch 7 | iter 1400/1519 | loss: 0.0306
+epoch 7 | iter 1500/1519 | loss: 0.0254
+Evaluating...
+[Epoch 7] time: 77.27m | lr: 0.010000 | train-loss: 0.035 | mpjpe_millimeter: 18.8 | mpjpe_pixel: 4.4
+epoch 8 | iter 0/1519 | loss: 0.0255
+epoch 8 | iter 100/1519 | loss: 0.0258
+epoch 8 | iter 200/1519 | loss: 0.0276
+epoch 8 | iter 300/1519 | loss: 0.1189
+epoch 8 | iter 400/1519 | loss: 0.0297
+epoch 8 | iter 500/1519 | loss: 0.0229
+epoch 8 | iter 600/1519 | loss: 0.0357
+epoch 8 | iter 700/1519 | loss: 0.0275
+epoch 8 | iter 800/1519 | loss: 0.0272
+epoch 8 | iter 900/1519 | loss: 0.0311
+epoch 8 | iter 1000/1519 | loss: 0.0263
+epoch 8 | iter 1100/1519 | loss: 0.0445
+epoch 8 | iter 1200/1519 | loss: 0.0305
+epoch 8 | iter 1300/1519 | loss: 0.0285
+epoch 8 | iter 1400/1519 | loss: 0.0553
+epoch 8 | iter 1500/1519 | loss: 0.0264
+Evaluating...
+[Epoch 8] time: 56.39m | lr: 0.010000 | train-loss: 0.036 | mpjpe_millimeter: 18.8 | mpjpe_pixel: 4.3
+epoch 9 | iter 0/1519 | loss: 0.0285
+epoch 9 | iter 100/1519 | loss: 0.0283
+epoch 9 | iter 200/1519 | loss: 0.0338
+epoch 9 | iter 300/1519 | loss: 0.0257
+epoch 9 | iter 400/1519 | loss: 0.0270
+epoch 9 | iter 500/1519 | loss: 0.0439
+epoch 9 | iter 600/1519 | loss: 0.0303
+epoch 9 | iter 700/1519 | loss: 0.0291
+epoch 9 | iter 800/1519 | loss: 0.0306
+epoch 9 | iter 900/1519 | loss: 0.0922
+epoch 9 | iter 1000/1519 | loss: 0.0646
+epoch 9 | iter 1100/1519 | loss: 0.0430
+epoch 9 | iter 1200/1519 | loss: 0.0408
+epoch 9 | iter 1300/1519 | loss: 0.0313
+epoch 9 | iter 1400/1519 | loss: 0.0319
+epoch 9 | iter 1500/1519 | loss: 0.0337
+Evaluating...
+[Epoch 9] time: 55.12m | lr: 0.010000 | train-loss: 0.041 | mpjpe_millimeter: 22.9 | mpjpe_pixel: 5.3
+epoch 10 | iter 0/1519 | loss: 0.0317
+epoch 10 | iter 100/1519 | loss: 0.0359
+epoch 10 | iter 200/1519 | loss: 0.0374
+epoch 10 | iter 300/1519 | loss: 0.0334
+epoch 10 | iter 400/1519 | loss: 0.0337
+epoch 10 | iter 500/1519 | loss: 0.0309
+epoch 10 | iter 600/1519 | loss: 0.0878
+epoch 10 | iter 700/1519 | loss: 0.0314
+epoch 10 | iter 800/1519 | loss: 0.0283
+epoch 10 | iter 900/1519 | loss: 0.0321
+epoch 10 | iter 1000/1519 | loss: 0.0303
+epoch 10 | iter 1100/1519 | loss: 0.0292
+epoch 10 | iter 1200/1519 | loss: 0.0376
+epoch 10 | iter 1300/1519 | loss: 0.0328
+epoch 10 | iter 1400/1519 | loss: 0.0334
+epoch 10 | iter 1500/1519 | loss: 0.0306
+Evaluating...
+[Epoch 10] time: 76.78m | lr: 0.010000 | train-loss: 0.035 | mpjpe_millimeter: 19.9 | mpjpe_pixel: 4.6
+epoch 11 | iter 0/1519 | loss: 0.0293
+epoch 11 | iter 100/1519 | loss: 0.0296
+epoch 11 | iter 200/1519 | loss: 0.0293
+epoch 11 | iter 300/1519 | loss: 0.0320
+epoch 11 | iter 400/1519 | loss: 0.1032
+epoch 11 | iter 500/1519 | loss: 0.0284
+epoch 11 | iter 600/1519 | loss: 0.0291
+epoch 11 | iter 700/1519 | loss: 0.0297
+epoch 11 | iter 800/1519 | loss: 0.0438
+epoch 11 | iter 900/1519 | loss: 0.0294
+epoch 11 | iter 1000/1519 | loss: 0.0285
+epoch 11 | iter 1100/1519 | loss: 0.0792
+epoch 11 | iter 1200/1519 | loss: 0.0341
+epoch 11 | iter 1300/1519 | loss: 0.0320
+epoch 11 | iter 1400/1519 | loss: 0.0287
+epoch 11 | iter 1500/1519 | loss: 0.0329
+Evaluating...
+[Epoch 11] time: 75.45m | lr: 0.010000 | train-loss: 0.037 | mpjpe_millimeter: 19.6 | mpjpe_pixel: 4.5
+epoch 12 | iter 0/1519 | loss: 0.0279
+epoch 12 | iter 100/1519 | loss: 0.0293
+epoch 12 | iter 200/1519 | loss: 0.0281
+epoch 12 | iter 300/1519 | loss: 0.0296
+epoch 12 | iter 400/1519 | loss: 0.0333
+epoch 12 | iter 500/1519 | loss: 0.0288
+epoch 12 | iter 600/1519 | loss: 0.0498
+epoch 12 | iter 700/1519 | loss: 0.0292
+epoch 12 | iter 800/1519 | loss: 0.0269
+epoch 12 | iter 900/1519 | loss: 0.0294
+epoch 12 | iter 1000/1519 | loss: 0.0337
+epoch 12 | iter 1100/1519 | loss: 0.0261
+epoch 12 | iter 1200/1519 | loss: 0.0283
+epoch 12 | iter 1300/1519 | loss: 0.0293
+epoch 12 | iter 1400/1519 | loss: 0.0277
+epoch 12 | iter 1500/1519 | loss: 0.0269
+Evaluating...
+[Epoch 12] time: 56.14m | lr: 0.010000 | train-loss: 0.033 | mpjpe_millimeter: 19.4 | mpjpe_pixel: 4.5
+epoch 13 | iter 0/1519 | loss: 0.0271
+epoch 13 | iter 100/1519 | loss: 0.0294
+epoch 13 | iter 200/1519 | loss: 0.0254
+epoch 13 | iter 300/1519 | loss: 0.0292
+epoch 13 | iter 400/1519 | loss: 0.0517
+epoch 13 | iter 500/1519 | loss: 0.0333
+epoch 13 | iter 600/1519 | loss: 0.0291
+epoch 13 | iter 700/1519 | loss: 0.0286
+epoch 13 | iter 800/1519 | loss: 0.0290
+epoch 13 | iter 900/1519 | loss: 0.0262
+epoch 13 | iter 1000/1519 | loss: 0.0284
+epoch 13 | iter 1100/1519 | loss: 0.0572
+epoch 13 | iter 1200/1519 | loss: 0.0278
+epoch 13 | iter 1300/1519 | loss: 0.0257
+epoch 13 | iter 1400/1519 | loss: 0.0257
+epoch 13 | iter 1500/1519 | loss: 0.0263
+Evaluating...
+[Epoch 13] time: 55.83m | lr: 0.010000 | train-loss: 0.034 | mpjpe_millimeter: 16.7 | mpjpe_pixel: 3.9
+  --> New best model! Saving to ./logs/vqvae_byBradley/hrnet_32_f16_250914_17pm/ConPose@14.09.2025-13:23:28/checkpoints/best_epoch.bin
+epoch 14 | iter 0/1519 | loss: 0.0236
+epoch 14 | iter 100/1519 | loss: 0.0333
+epoch 14 | iter 200/1519 | loss: 0.0397
+epoch 14 | iter 300/1519 | loss: 0.0354
+epoch 14 | iter 400/1519 | loss: 0.0297
+epoch 14 | iter 500/1519 | loss: 0.0270
+epoch 14 | iter 600/1519 | loss: 0.0324
+epoch 14 | iter 700/1519 | loss: 0.0304
+epoch 14 | iter 800/1519 | loss: 0.0275
+epoch 14 | iter 900/1519 | loss: 0.0283
+epoch 14 | iter 1000/1519 | loss: 0.0273
+epoch 14 | iter 1100/1519 | loss: 0.0269
+epoch 14 | iter 1200/1519 | loss: 0.0725
+epoch 14 | iter 1300/1519 | loss: 0.0375
+epoch 14 | iter 1400/1519 | loss: 0.0333
+epoch 14 | iter 1500/1519 | loss: 0.0284
+Evaluating...
+[Epoch 14] time: 77.40m | lr: 0.010000 | train-loss: 0.039 | mpjpe_millimeter: 23.2 | mpjpe_pixel: 5.4
+epoch 15 | iter 0/1519 | loss: 0.0289
+epoch 15 | iter 100/1519 | loss: 0.0350
+epoch 15 | iter 200/1519 | loss: 0.0252
+epoch 15 | iter 300/1519 | loss: 0.0398
+epoch 15 | iter 400/1519 | loss: 0.0260
+epoch 15 | iter 500/1519 | loss: 0.0778
+epoch 15 | iter 600/1519 | loss: 0.0287
+epoch 15 | iter 700/1519 | loss: 0.0274
+epoch 15 | iter 800/1519 | loss: 0.0253
