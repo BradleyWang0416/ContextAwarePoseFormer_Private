@@ -8,10 +8,10 @@ from collections import defaultdict
 
 import sys
 # sys.path.append('/home/wxs/Skeleton-in-Context-tpami/')
-sys.path.append('../../Skeleton-in-Context-tpami/')
+sys.path.append('../Skeleton-in-Context-tpami/')
 from funcs_and_classes.Non_AR.dataset.ver13_ICL import DataReaderMesh
 from lib.utils.viz_skel_seq import viz_skel_seq_anim
-sys.path.remove('../../Skeleton-in-Context-tpami/')
+sys.path.remove('../Skeleton-in-Context-tpami/')
 
 from preprocess_h36m_03AffineImage_byBradley import get_affine_transform
 
