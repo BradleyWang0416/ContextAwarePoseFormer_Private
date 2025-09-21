@@ -7,9 +7,11 @@ import shutil
 from collections import defaultdict
 
 import sys
-sys.path.append('/home/wxs/Skeleton-in-Context-tpami/')
+# sys.path.append('/home/wxs/Skeleton-in-Context-tpami/')
+sys.path.append('../../Skeleton-in-Context-tpami/')
 from funcs_and_classes.Non_AR.dataset.ver13_ICL import DataReaderMesh
 from lib.utils.viz_skel_seq import viz_skel_seq_anim
+sys.path.remove('../../Skeleton-in-Context-tpami/')
 
 from preprocess_h36m_03AffineImage_byBradley import get_affine_transform
 
@@ -163,6 +165,10 @@ class Multimodal_Mocap_Dataset(torch.utils.data.Dataset):
 
             ######################################################### affine poses to align with images ########################################################
             if use_image and processed_image_shape is not None:
+                
+                AFFINE_TRANS = []
+                AFFINE_TRANS_INV = []
+
                 joint3d_image_affined = np.zeros_like(joint3d_image)
                 for i in range(joint3d_image.shape[0]):
                     bbox = bboxes_xyxy[i]
@@ -173,6 +179,16 @@ class Multimodal_Mocap_Dataset(torch.utils.data.Dataset):
                     pose_xy = joint3d_image[i, :, :2].copy()   # (17,2)
                     pose_xy1 = np.concatenate([pose_xy, np.ones((pose_xy.shape[0],1))], axis=1)   # (17,3)
                     pose_xy_affined = np.einsum('ij,kj->ik', pose_xy1, trans)
+
+
+                    trans_inv = get_affine_transform(center, scale, 0, processed_image_shape, inv=1)
+                    AFFINE_TRANS.append(trans)
+                    AFFINE_TRANS_INV.append(trans_inv)
+                    """逆仿射变换复原关键点坐标 (从 pose_xy_affined 到 pose_xy)
+                    pose_xy_affined_homo = np.concatenate([pose_xy_affined, np.ones((pose_xy_affined.shape[0], 1))], axis=1)  # (N, 3)
+                    pose_xy_restored = np.einsum('ij,kj->ki', trans_inv, pose_xy_affined_homo)
+                    """
+
 
                     pose_z = joint3d_image[i, :, 2:3].copy()   # (17,1). pose_z[0] should already be zero
                     pose_z_affined = pose_z - pose_z[0:1, :]   # root-relative. pose_z_affined should be the same as pose_z
@@ -187,6 +203,13 @@ class Multimodal_Mocap_Dataset(torch.utils.data.Dataset):
                         shutil.copy(img_list[i].item(), 'tmp.jpg')
                 
                 assert (joint3d_image_affined[..., 2] == joint3d_image[..., 2]).all()   # pose_z should be the same
+                
+                
+                AFFINE_TRANS = np.stack(AFFINE_TRANS)
+                AFFINE_TRANS_INV = np.stack(AFFINE_TRANS_INV)
+                data_dict[dt_file]['affine_trans'] = AFFINE_TRANS
+                data_dict[dt_file]['affine_trans_inv'] = AFFINE_TRANS_INV
+
 
                 data_dict[dt_file]['joint3d_image_affined'] = joint3d_image_affined
                 data_dict[dt_file]['processed_img_wh'] = np.array([processed_image_shape]*joint3d_image.shape[0], dtype=np.int32)   # (N,2)
@@ -222,6 +245,7 @@ class Multimodal_Mocap_Dataset(torch.utils.data.Dataset):
         return len(self.data_list)        
 
     def __getitem__(self, idx):
+        #### 注意: 这里的变量名不要随意修改 !!! 不然会影响 item = locals()[get_item]
         dt_file, slice_id, use_image, caption = self.data_list[idx]
 
         joint3d_image = self.data_dict[dt_file]['joint3d_image'][slice_id]  # (num_frames, 17, 3)
@@ -238,7 +262,13 @@ class Multimodal_Mocap_Dataset(torch.utils.data.Dataset):
         if use_image:
             ############################################# load image; do normalize #############################################
             image_sources = self.data_dict[dt_file]['image_sources'][slice_id]  # (num_frames,)
+
+
             processed_img_wh = self.data_dict[dt_file]['processed_img_wh'][slice_id]  # (num_frames, 2). element: (res_w, res_h)
+            affine_trans = self.data_dict[dt_file]['affine_trans'][slice_id]  # (num_frames, 3, 2)
+            affine_trans_inv = self.data_dict[dt_file]['affine_trans_inv'][slice_id]  # (num_frames, 3, 2)
+            bboxes_xyxy = self.data_dict[dt_file]['bboxes_xyxy'][slice_id]  # (num_frames, 4)
+
 
             video_bgr = []
             for img_path in image_sources:
@@ -298,8 +328,9 @@ if __name__ == '__main__':
                                        get_item_list=['joint3d_image', 'joint3d_image_normed', 'factor_2_5d', 'joint3d_image_scale', 'joint3d_image_transl', 
                                                       'video_rgb', 'joint3d_image_affined', 'joint3d_image_affined_normed', 'joint3d_image_affined_scale', 'joint3d_image_affined_transl',
                                                       'slice_id', 'image_sources',
-                                                      'joint_2_5d_image']
+                                                      'joint_2_5d_image',
+                                                      'affine_trans', 'affine_trans_inv']
                                        )
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size=4, shuffle=True, num_workers=0, collate_fn=Multimodal_Mocap_Dataset.collate_fn)
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=4, shuffle=True, num_workers=0, collate_fn=dataset.collate_fn)
     for batch_dict in dataloader:
         pass
