@@ -11,7 +11,7 @@ from mvn.models import pose_hrnet
 from mvn.models.networks import network
 from mvn.models.cpn.test_config import cfg
 from mvn.models.pose_dformer import PoseTransformer
-from mvn.utils.viz_skel_seq import viz_skel_seq_anim
+# from mvn.utils.viz_skel_seq import viz_skel_seq_anim
 
 
 class JointS1Loss(nn.Module):
@@ -440,7 +440,8 @@ class CAPF_VQVAE(nn.Module):
 
         # TODO: joint3d_image_affined[..., 2:] 是否需要进行处理?
 
-        features_list = self.backbone(video_rgb.reshape(-1, *video_rgb.shape[2:]))
+        with torch.no_grad():
+            features_list = self.backbone(video_rgb.reshape(-1, *video_rgb.shape[2:]))
         # [[BT,32,64,48], [BT,64,32,24], [BT,128,16,12], [BT,256,8,6]]
         
         """从 2D grid_sample 到 3D grid_sample. 但是"每一帧都看到所有帧"好像不适用于 VQVAE 以及后续进一步用于 VLLM

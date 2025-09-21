@@ -213,7 +213,7 @@ def one_epoch_full(model, criterion, optimizer, scheduler, config, dataloader, d
                 results['img_ori_hw'].append(img_ori_hw.cpu().numpy())
 
 
-            if num_iter % 100 == 0 or num_iter == data_len:
+            if is_train and num_iter % 100 == 0 or num_iter == data_len:
                 print(f"epoch {epoch+1} | iter {num_iter}/{data_len} | loss: {loss.item():.4f}")
                 pbar.update(50)
 
