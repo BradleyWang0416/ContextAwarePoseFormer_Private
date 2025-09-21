@@ -75,8 +75,8 @@ class Multimodal_Mocap_Dataset(torch.utils.data.Dataset):
                         if img_path is None:
                             continue
                         valid_img_indices.append(frame_id)
-                        if 'debugpy' in sys.modules and designated_split == 'train' and len(valid_img_indices) >= 32:   # for debug purpose
-                            break
+                        # if 'debugpy' in sys.modules and designated_split == 'train' and len(valid_img_indices) >= 32:   # for debug purpose
+                        #     break
                 else:
                     valid_img_indices = list(range(len(img_list)))
 
@@ -297,7 +297,8 @@ if __name__ == '__main__':
     dataset = Multimodal_Mocap_Dataset(processed_image_shape=(192,256),
                                        get_item_list=['joint3d_image', 'joint3d_image_normed', 'factor_2_5d', 'joint3d_image_scale', 'joint3d_image_transl', 
                                                       'video_rgb', 'joint3d_image_affined', 'joint3d_image_affined_normed', 'joint3d_image_affined_scale', 'joint3d_image_affined_transl',
-                                                      'slice_id', 'image_sources']
+                                                      'slice_id', 'image_sources',
+                                                      'joint_2_5d_image']
                                        )
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=4, shuffle=True, num_workers=0, collate_fn=Multimodal_Mocap_Dataset.collate_fn)
     for batch_dict in dataloader:
