@@ -1,4 +1,4 @@
-import os
+import os.path as osp
 import joblib
 import numpy as np
 import cv2
@@ -7,24 +7,34 @@ import shutil
 from collections import defaultdict
 
 import sys
-# sys.path.append('/home/wxs/Skeleton-in-Context-tpami/')
-sys.path.append('../Skeleton-in-Context-tpami/')
+
+
+ROOT_PATH = osp.dirname(osp.dirname(osp.dirname(osp.abspath(__file__))))
+
+if osp.isfile("/data2/wxs/DATASETS/Human3.6M_for_MotionBERT/h36m_sh_conf_cam_source_final.pkl"):
+    DATA_ROOT_PATH = '/data2/'
+elif osp.isfile("/group/40174/peimingli/bradley/data2/wxs/DATASETS/Human3.6M_for_MotionBERT/h36m_sh_conf_cam_source_final.pkl"):
+    DATA_ROOT_PATH = '/group/40174/peimingli/bradley/data2/'
+
+
+sys.path.append(osp.join(ROOT_PATH, 'Skeleton-in-Context-tpami/'))
 from funcs_and_classes.Non_AR.dataset.ver13_ICL import DataReaderMesh
 from lib.utils.viz_skel_seq import viz_skel_seq_anim
-sys.path.remove('../Skeleton-in-Context-tpami/')
+sys.path.remove(osp.join(ROOT_PATH, 'Skeleton-in-Context-tpami/'))
+
 
 from preprocess_h36m_03AffineImage_byBradley import get_affine_transform
 
 
-joints_left = [4, 5, 6, 11, 12, 13] 
+joints_left = [4, 5, 6, 11, 12, 13]
 joints_right = [1, 2, 3, 14, 15, 16]
 
 
 class Multimodal_Mocap_Dataset(torch.utils.data.Dataset):
     def __init__(self, num_frames=16, sample_stride=1, data_stride=16, data_mode="joint3d", designated_split='train',
-                 load_data_file="/data2/wxs/DATASETS/Human3.6M_for_MotionBERT/h36m_sh_conf_cam_source_final.pkl", 
-                 load_image_source_file="/data2/wxs/DATASETS/Human3.6M_for_MotionBERT/images_source.pkl", 
-                 load_bbox_file="/data2/wxs/DATASETS/Human3.6M_for_MotionBERT/bboxes_xyxy.pkl",
+                 load_data_file=osp.join(DATA_ROOT_PATH, "wxs/DATASETS/Human3.6M_for_MotionBERT/h36m_sh_conf_cam_source_final.pkl"), 
+                 load_image_source_file=osp.join(DATA_ROOT_PATH, "wxs/DATASETS/Human3.6M_for_MotionBERT/images_source.pkl"), 
+                 load_bbox_file=osp.join(DATA_ROOT_PATH, "wxs/DATASETS/Human3.6M_for_MotionBERT/bboxes_xyxy.pkl"),
                  load_text_source_file="",
                  return_extra=[['image']],
                  # data preprocessing config
@@ -42,14 +52,17 @@ class Multimodal_Mocap_Dataset(torch.utils.data.Dataset):
         # load_image_source_file='<h36m_img_path>,'
         # load_text_source_file=',<amass_text_path>'
         # return_extra=[['image'], ['text']]
-        assert data_mode == 'joint3d', 'due to the current affine transform code implementation, only support [data_mode=joint3d] now.'
+        # assert data_mode == 'joint3d', 'due to the current affine transform code implementation, only support [data_mode=joint3d] now.'
         assert len(load_data_file.split(',')) == len(load_image_source_file.split(',')) == len(return_extra) == len(load_bbox_file.split(','))
 
         self.num_frames = num_frames
         self.get_item_list = get_item_list
-        # e.g., [joint3d_image, joint3d_image_normed, factor_2_5d, joint3d_image_scale, joint3d_image_transl,
-        #        video_rgb, joint3d_image_affined, joint3d_image_affined_normed, joint3d_image_affined_scale, joint3d_image_affined_transl,
-        #        slice_id, image_sources]
+        # get_item_list=['joint3d_image', 'joint3d_image_normed', 'factor_2_5d', 'joint3d_image_scale', 'joint3d_image_transl', 
+        #                'video_rgb', 'joint3d_image_affined', 'joint3d_image_affined_normed', 'joint3d_image_affined_scale', 'joint3d_image_affined_transl',
+        #                'slice_id', 'image_sources',
+        #                'joint_2_5d_image',
+        #                'affine_trans', 'affine_trans_inv', 
+        #                'joint2d', 'joint2d_cpn', 'joint3d_cam', 'joint3d_cam_rootrel_meter']
         assert len(self.get_item_list) > 0
         self.batch_return_type = batch_return_type
         assert self.batch_return_type in ['dict', 'tuple']
@@ -71,6 +84,18 @@ class Multimodal_Mocap_Dataset(torch.utils.data.Dataset):
             use_image = 'image' in extra_modality_list
             if use_image:
                 img_list = joblib.load(img_src_file)[designated_split]
+
+
+                # For running on H20 #########################
+                img_list = img_list.tolist()
+                for frame_id, img_path in enumerate(img_list):
+                    if img_path is None:
+                        continue
+                    img_list[frame_id] = img_path.replace('/data2/', DATA_ROOT_PATH)
+                img_list = np.array(img_list)
+                ##############################################
+
+
                 if filter_invalid_images:
                     valid_img_indices = []
                     for frame_id, img_path in enumerate(img_list):
@@ -92,7 +117,7 @@ class Multimodal_Mocap_Dataset(torch.utils.data.Dataset):
                     assert processed_image_shape[0] == 192 and processed_image_shape[1] == 256, f'only supports [processed_image_shape=(192,256)] now. other settings not implemented yet.'
                     for frame_id, img_path in enumerate(img_list):
                         img_list[frame_id] = img_path.replace('images_fps50', f'images_fps50_cropped_{processed_image_shape[0]}x{processed_image_shape[1]}')
-                        assert os.path.exists(img_list[frame_id]), f'img_list[frame_id]={img_list[frame_id]} not exists.'
+                        assert osp.exists(img_list[frame_id]), f'img_list[frame_id]={img_list[frame_id]} not exists.'
                     img_list = np.array(img_list)
             else:
                 valid_img_indices = slice(None)   # all valid
@@ -119,8 +144,12 @@ class Multimodal_Mocap_Dataset(torch.utils.data.Dataset):
                 else:
                     unsplit_data[designated_split][data_mode] = unsplit_data[designated_split][data_mode][valid_img_indices]
 
+
             datareader.dt_dataset = unsplit_data
             joint3d_image = datareader.read_3d_image(designated_split=designated_split, do_screen_coordinate_normalize=False)     # (N,17,3). sample_stride applied here
+            joint3d_cam = datareader.read_joint(key='joint_3d_cam', designated_split=designated_split)     # (N,17,3). sample_stride applied here
+            joint2d_cpn = datareader.read_joint(key='joint_2d_cpn', designated_split=designated_split)     # (N,17,3). sample_stride applied here
+            joint2d = datareader.read_2d(designated_split=designated_split, do_screen_coordinate_normalize=False)     # (N,17,2). sample_stride applied here
 
 
             ######################################################### original height and weight part; get norm and denorm factor #########################################################
@@ -150,7 +179,11 @@ class Multimodal_Mocap_Dataset(torch.utils.data.Dataset):
 
             ######################################################### do a sanity check; store data #########################################################
             assert joint3d_image.shape[0] == len(data_sources) == len(img_ori_wh) == joint_2_5d_image.shape[0] == factor_2_5d.shape[0]
-            data_dict[dt_file] = {'joint3d_image': joint3d_image,   # (N,17,3)
+            data_dict[dt_file] = {
+                                  'joint2d': joint2d,   # (N,17,3)
+                                  'joint2d_cpn': joint2d_cpn,   # (N,17,3)
+                                  'joint3d_cam': joint3d_cam,   # (N,17,3)
+                                  'joint3d_image': joint3d_image,   # (N,17,3)
                                   'joint_2.5d_image': joint_2_5d_image,   # (N,17,3)
                                   'sources': data_sources,   # (N,)
                                   'ori_img_wh': img_ori_wh,   # (N,2)
@@ -248,6 +281,10 @@ class Multimodal_Mocap_Dataset(torch.utils.data.Dataset):
         #### 注意: 这里的变量名不要随意修改 !!! 不然会影响 item = locals()[get_item]
         dt_file, slice_id, use_image, caption = self.data_list[idx]
 
+        joint2d = self.data_dict[dt_file]['joint2d'][slice_id]  # (num_frames, 17, 2)
+        joint2d_cpn = self.data_dict[dt_file]['joint2d_cpn'][slice_id]  # (num_frames, 17, 2)
+        joint3d_cam = self.data_dict[dt_file]['joint3d_cam'][slice_id]  # (num_frames, 17, 3)
+        joint3d_cam_rootrel_meter = (joint3d_cam - joint3d_cam[..., 0:1, :]) / 1000  # (num_frames, 17, 3)
         joint3d_image = self.data_dict[dt_file]['joint3d_image'][slice_id]  # (num_frames, 17, 3)
         joint_2_5d_image = self.data_dict[dt_file]['joint_2.5d_image'][slice_id]  # (num_frames, 17, 3)
         factor_2_5d = self.data_dict[dt_file]['2.5d_factor'][slice_id]  # (num_frames,) only for test
@@ -272,7 +309,7 @@ class Multimodal_Mocap_Dataset(torch.utils.data.Dataset):
 
             video_bgr = []
             for img_path in image_sources:
-                assert os.path.exists(img_path), f'img_path={img_path} not exists.'
+                assert osp.exists(img_path), f'img_path={img_path} not exists.'
                 image_bgr = cv2.imread(img_path, cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
                 video_bgr.append(image_bgr)
             video_bgr = np.stack(video_bgr, axis=0)  # (num_frames, H, W, 3), BGR order
@@ -293,7 +330,11 @@ class Multimodal_Mocap_Dataset(torch.utils.data.Dataset):
         for get_item in self.get_item_list:
             item = locals()[get_item]
             try:
-                item = torch.from_numpy(item).float()
+                item = torch.from_numpy(item)
+                if item.dtype == torch.int64:
+                    pass
+                else:
+                    item = item.float()
             except:
                 pass
             return_dict[get_item] = item
@@ -329,7 +370,10 @@ if __name__ == '__main__':
                                                       'video_rgb', 'joint3d_image_affined', 'joint3d_image_affined_normed', 'joint3d_image_affined_scale', 'joint3d_image_affined_transl',
                                                       'slice_id', 'image_sources',
                                                       'joint_2_5d_image',
-                                                      'affine_trans', 'affine_trans_inv']
+                                                      'affine_trans', 'affine_trans_inv', 
+                                                      'joint2d', 'joint2d_cpn', 'joint3d_cam',
+                                                      'joint3d_cam_rootrel_meter'],
+                                       load_data_file="/data1/wxs/DATASETS/Human3.6M_for_MotionBERT/h36m_sh_conf_cam_source_final_wImgPath_wJ3dCam_wJ2dCpn.pkl",
                                        )
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=4, shuffle=True, num_workers=0, collate_fn=dataset.collate_fn)
     for batch_dict in dataloader:

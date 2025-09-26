@@ -5,13 +5,13 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: Attach to Debugpy Port 5678",
+            "name": "5690 Python: Attach to Debugpy Port 5678",
             "type": "debugpy",
             "request": "attach",
             "justMyCode": true,
             "connect": {
                 "host": "localhost",
-                "port": 5678
+                "port": 5690
             },
             "pathMappings": [
                 {
@@ -21,7 +21,7 @@
             ]
         },
         {
-            "name": "Python: Attach to Debugpy Port 5679",
+            "name": "5679 Python: Attach to Debugpy Port 5679",
             "type": "debugpy",
             "request": "attach",
             "justMyCode": true,
