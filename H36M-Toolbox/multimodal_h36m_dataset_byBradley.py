@@ -87,7 +87,6 @@ class Multimodal_Mocap_Dataset(torch.utils.data.Dataset):
 
 
                 # For running on H20 #########################
-                img_list = img_list.tolist()
                 for frame_id, img_path in enumerate(img_list):
                     if img_path is None:
                         continue
