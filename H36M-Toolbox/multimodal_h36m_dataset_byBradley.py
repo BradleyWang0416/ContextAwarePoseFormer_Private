@@ -13,7 +13,7 @@ ROOT_PATH = osp.dirname(osp.dirname(osp.dirname(osp.abspath(__file__))))
 
 if osp.isfile("/data2/wxs/DATASETS/Human3.6M_for_MotionBERT/h36m_sh_conf_cam_source_final.pkl"):
     DATA_ROOT_PATH = '/data2/'
-elif osp.isfile("/group/40174/peimingli/bradley/data2/wxs/DATASETS/Human3.6M_for_MotionBERT/h36m_sh_conf_cam_source_final.pkl"):
+elif osp.isfile("/group/40174/peimingli/bradley/Human3.6M_for_MotionBERT/h36m_sh_conf_cam_source_final.pkl"):
     DATA_ROOT_PATH = '/group/40174/peimingli/bradley/data2/'
 
 
