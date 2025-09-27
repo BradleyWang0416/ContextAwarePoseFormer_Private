@@ -349,11 +349,12 @@ class Multimodal_Mocap_Dataset(torch.utils.data.Dataset):
         for b in batch:
             for k, v in b.items():
                 return_dict[k].append(v)
-        try:
-            for k, v in return_dict.items():
+                
+        for k, v in return_dict.items():
+            try:
                 return_dict[k] = torch.stack(v, dim=0)
-        except:
-            pass
+            except:
+                pass
 
         if len(return_dict) == 1:
             return return_dict[ list(return_dict.keys())[0] ]
