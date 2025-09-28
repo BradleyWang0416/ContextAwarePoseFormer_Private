@@ -373,6 +373,7 @@ if __name__ == '__main__':
                                                       'affine_trans', 'affine_trans_inv', 
                                                       'joint2d', 'joint2d_cpn', 'joint3d_cam',
                                                       'joint3d_cam_rootrel_meter'],
+                                       # ['joint3d_image','joint3d_image_normed','factor_2_5d','joint3d_image_scale','joint3d_image_transl','video_rgb','joint3d_image_affined','joint3d_image_affined_normed','joint3d_image_affined_scale','joint3d_image_affined_transl','slice_id','image_sources','joint_2_5d_image','affine_trans','affine_trans_inv','joint2d','joint2d_cpn','joint3d_cam','joint3d_cam_rootrel_meter']
                                        load_data_file="/data1/wxs/DATASETS/Human3.6M_for_MotionBERT/h36m_sh_conf_cam_source_final_wImgPath_wJ3dCam_wJ2dCpn.pkl",
                                        )
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=4, shuffle=True, num_workers=0, collate_fn=dataset.collate_fn)
