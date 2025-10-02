@@ -46,6 +46,7 @@ class Multimodal_Mocap_Dataset(torch.utils.data.Dataset):
                  # dataloader config
                  get_item_list=[],
                  batch_return_type='dict',
+                 max_samples=None,
                  ):
         # e.g.,
         # lode_data_file='<h36m_path>,<amass_path>'
@@ -80,6 +81,15 @@ class Multimodal_Mocap_Dataset(torch.utils.data.Dataset):
         data_dict = {}
         data_list = []
         for dt_file, img_src_file, bbox_file, extra_modality_list in zip(load_data_file.split(','), load_image_source_file.split(','), load_bbox_file.split(','), return_extra):
+
+            ######################################################### handle different servers #########################################################
+            if not dt_file.startswith('/'):
+                dt_file = osp.join(DATA_ROOT_PATH, dt_file)
+            if not img_src_file.startswith('/'):
+                img_src_file = osp.join(DATA_ROOT_PATH, img_src_file)
+            if not bbox_file.startswith('/'):
+                bbox_file = osp.join(DATA_ROOT_PATH, bbox_file)
+            
             ######################################################### load image data; find indices with valid images; do not apply sample_stride #########################################################
             use_image = 'image' in extra_modality_list
             if use_image:
@@ -106,6 +116,10 @@ class Multimodal_Mocap_Dataset(torch.utils.data.Dataset):
                 else:
                     valid_img_indices = list(range(len(img_list)))
 
+                
+                if max_samples is not None:
+                    valid_img_indices = valid_img_indices[:max_samples]
+
 
                 img_list = np.array(img_list)[valid_img_indices]   # resample according to valid_img_indices (sample_stride not applied yet here)
                 img_list = img_list[::sample_stride]  # sample_stride applied here
@@ -116,10 +130,14 @@ class Multimodal_Mocap_Dataset(torch.utils.data.Dataset):
                     assert processed_image_shape[0] == 192 and processed_image_shape[1] == 256, f'only supports [processed_image_shape=(192,256)] now. other settings not implemented yet.'
                     for frame_id, img_path in enumerate(img_list):
                         img_list[frame_id] = img_path.replace('images_fps50', f'images_fps50_cropped_{processed_image_shape[0]}x{processed_image_shape[1]}')
-                        assert osp.exists(img_list[frame_id]), f'img_list[frame_id]={img_list[frame_id]} not exists.'
+                        if frame_id % 10000 == 0: 
+                            assert osp.exists(img_list[frame_id]), f'img_list[frame_id]={img_list[frame_id]} not exists.'
                     img_list = np.array(img_list)
             else:
                 valid_img_indices = slice(None)   # all valid
+
+                if max_samples is not None:
+                    valid_img_indices = slice(0, max_samples)
 
             ######################################################### bbox data part #########################################################
             if use_image:
@@ -306,15 +324,16 @@ class Multimodal_Mocap_Dataset(torch.utils.data.Dataset):
             bboxes_xyxy = self.data_dict[dt_file]['bboxes_xyxy'][slice_id]  # (num_frames, 4)
 
 
-            video_bgr = []
-            for img_path in image_sources:
-                assert osp.exists(img_path), f'img_path={img_path} not exists.'
-                image_bgr = cv2.imread(img_path, cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
-                video_bgr.append(image_bgr)
-            video_bgr = np.stack(video_bgr, axis=0)  # (num_frames, H, W, 3), BGR order
+            if 'video_rgb' in self.get_item_list:
+                video_bgr = []
+                for img_path in image_sources:
+                    assert osp.exists(img_path), f'img_path={img_path} not exists.'
+                    image_bgr = cv2.imread(img_path, cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
+                    video_bgr.append(image_bgr)
+                video_bgr = np.stack(video_bgr, axis=0)  # (num_frames, H, W, 3), BGR order
 
-            video_rgb = video_bgr[..., ::-1]  # Convert BGR to RGB
-            video_rgb = (video_rgb / 255.0 - self.img_mean) / self.img_std   # to [0,1], then normalize
+                video_rgb = video_bgr[..., ::-1]  # Convert BGR to RGB
+                video_rgb = (video_rgb / 255.0 - self.img_mean) / self.img_std   # to [0,1], then normalize
 
             ############################################# load affined joint3d_image; do normalize #############################################
             joint3d_image_affined = self.data_dict[dt_file]['joint3d_image_affined'][slice_id]  # (num_frames, 17, 3)
@@ -366,6 +385,7 @@ class Multimodal_Mocap_Dataset(torch.utils.data.Dataset):
 
 if __name__ == '__main__':
     dataset = Multimodal_Mocap_Dataset(processed_image_shape=(192,256),
+                                       designated_split='test',
                                        get_item_list=['joint3d_image', 'joint3d_image_normed', 'factor_2_5d', 'joint3d_image_scale', 'joint3d_image_transl', 
                                                       'video_rgb', 'joint3d_image_affined', 'joint3d_image_affined_normed', 'joint3d_image_affined_scale', 'joint3d_image_affined_transl',
                                                       'slice_id', 'image_sources',
@@ -374,7 +394,7 @@ if __name__ == '__main__':
                                                       'joint2d', 'joint2d_cpn', 'joint3d_cam',
                                                       'joint3d_cam_rootrel_meter'],
                                        # ['joint3d_image','joint3d_image_normed','factor_2_5d','joint3d_image_scale','joint3d_image_transl','video_rgb','joint3d_image_affined','joint3d_image_affined_normed','joint3d_image_affined_scale','joint3d_image_affined_transl','slice_id','image_sources','joint_2_5d_image','affine_trans','affine_trans_inv','joint2d','joint2d_cpn','joint3d_cam','joint3d_cam_rootrel_meter']
-                                       load_data_file="/data1/wxs/DATASETS/Human3.6M_for_MotionBERT/h36m_sh_conf_cam_source_final_wImgPath_wJ3dCam_wJ2dCpn.pkl",
+                                       load_data_file=osp.join(DATA_ROOT_PATH, "Human3.6M_for_MotionBERT/h36m_sh_conf_cam_source_final_wImgPath_wJ3dCam_wJ2dCpn.pkl"),
                                        )
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=4, shuffle=True, num_workers=0, collate_fn=dataset.collate_fn)
     for batch_dict in dataloader:
