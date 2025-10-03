@@ -306,6 +306,7 @@ class Multimodal_Mocap_Dataset(torch.utils.data.Dataset):
         joint_2_5d_image = self.data_dict[dt_file]['joint_2.5d_image'][slice_id]  # (num_frames, 17, 3)
         factor_2_5d = self.data_dict[dt_file]['2.5d_factor'][slice_id]  # (num_frames,) only for test
         ori_img_wh = self.data_dict[dt_file]['ori_img_wh'][slice_id]  # (num_frames, 2). element: (res_w, res_h)
+        sources = self.data_dict[dt_file]['sources'][slice_id]  # (num_frames, 2). element: (res_w, res_h)
         # assert (img_ori_hw[0:1, :] == img_ori_hw[1:, :]).all()
 
         ############################################# normalize joint3d_image #############################################
